@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repo contains Python code and resulting .csv output associated with extracting customer reviews from www.trustpilot.com. Reviews information was extracted for 11 leading pet insurance providers:
+This repo contains Python code and resulting .csv output associated with extracting customer reviews from www.trustpilot.com. Reviews information was extracted for 10 leading pet insurance providers:
 - AKC
 - ASPCA
 - Embrace
@@ -13,7 +13,6 @@ This repo contains Python code and resulting .csv output associated with extract
 - Pets Best
 - Pumpkin
 - Spot
-- Trupanion
 
 Note: Reviews in .csv files current as of 2024-04-05
 
