@@ -1,29 +1,18 @@
-# Extracting Customer Reviews from Trustpilot
+Pet Insurance Review Sentiment Analysis 🐾
+Analyzed ~27,000 Trustpilot reviews (2015–2024) for 10 major pet insurance providers to uncover what customers love (and dislike) most — and how each company stands out.
 
-## Overview
+Key highlights:
 
-This repo contains Python code and resulting .csv output associated with extracting customer reviews from www.trustpilot.com. Reviews information was extracted for 10 leading pet insurance providers:
-- AKC
-- ASPCA
-- Embrace
-- Fetch
-- Figo
-- Healthy Paws
-- Lemonade
-- Pets Best
-- Pumpkin
-- Spot
+🔍 Web scraping with Python to collect review text, ratings, and metadata.
 
-Note: Reviews in .csv files current as of 2024-04-05
+🧠 Sentiment analysis with TextBlob & VADER, benchmarked against star ratings.
 
-Fields captured:
-- id (e.g. 660d9183a8ec9c50ace577a2)
-- filtered (e.g. FALSE)
-- pending (e.g. FALSE)
-- text (e.g. Amanda was terrific.  I shopped for insurance and I thought you had the policy for the price.)
-- rating (e.g. 5)
-- title (e.g. Amanda was terrific)
-- likes (e.g. 0)
-- experienced (e.g. 2024-04-02T00:00:00.000Z)
-- published (e.g. 2024-04-02T20:58:35.000Z)
-- source (e.g. https://www.trustpilot.com/review/fetchpet.com?page=8)
+📊 Statistical term analysis to identify significant differentiators.
+
+📈 Interactive Tableau dashboard for exploring results.
+
+Providers covered: AKC, ASPCA, Embrace, Fetch, Figo, Healthy Paws, Lemonade, Pets Best, Pumpkin, Spot.
+
+View the Dashboard https://public.tableau.com/views/HowCustomersTalkAboutPetInsuranceProviders/Viz?:language=en-US&:sid=&:redirect=auth&:display_count=n&:origin=viz_share_link
+
+
