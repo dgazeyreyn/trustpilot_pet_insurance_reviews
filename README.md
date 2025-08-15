@@ -112,10 +112,10 @@ This analysis aimed to:
 ## Installation
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/pet-insurance-reviews.git
+git clone https://github.com/dgazeyreyn/trustpilot_pet_insurance_reviews.git
 
 # Navigate into the repo
-cd pet-insurance-reviews
+cd trustpilot_pet_insurance_reviews
 
 # Install dependencies
 pip install -r requirements.txt
