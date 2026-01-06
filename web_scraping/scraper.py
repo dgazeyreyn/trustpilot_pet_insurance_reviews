@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 import time
 
-DATA_DIR = Path("data")
+DATA_DIR = Path("incremental")
 DATA_DIR.mkdir(exist_ok=True)
 
 HEADERS = {
