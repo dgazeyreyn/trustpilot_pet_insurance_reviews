@@ -1,6 +1,7 @@
 import pandas as pd
 import yaml
 from pathlib import Path
+from datetime import datetime
 
 # ---------------------------
 # CONFIG
@@ -9,13 +10,14 @@ BASE_DIR = Path("/Users/davidreynolds/projects/trustpilot_pet_insurance_reviews/
 RAW_DIR = BASE_DIR / "raw"
 INCREMENTAL_DIR = BASE_DIR / "incremental"
 CURATED_DIR = BASE_DIR / "curated"
+PROVIDERS_YAML = BASE_DIR / "providers.yaml"
 
 CURATED_DIR.mkdir(exist_ok=True)
 
 # ---------------------------
 # LOAD PROVIDERS FROM YAML
 # ---------------------------
-with open(BASE_DIR / "providers.yaml", "r") as f:
+with open(PROVIDERS_YAML, "r") as f:
     providers = yaml.safe_load(f)
 
 # ---------------------------
@@ -28,23 +30,14 @@ for provider_key in providers.keys():
     inc_file = INCREMENTAL_DIR / f"{provider_key}_reviews_incremental.csv"
 
     # Load raw if it exists
-    if raw_file.exists():
-        df_raw = pd.read_csv(raw_file)
-        # Normalize schema defensively
-        if "review_id" in df_raw.columns and "id" not in df_raw.columns:
-            df_raw.rename(columns={"review_id": "id"}, inplace=True)
-    else:
-        df_raw = pd.DataFrame()
-        print("  No raw file found — treating incremental as full dataset")
+    df_raw = pd.read_csv(raw_file) if raw_file.exists() else pd.DataFrame()
+    if "review_id" in df_raw.columns and "id" not in df_raw.columns:
+        df_raw.rename(columns={"review_id": "id"}, inplace=True)
 
     # Load incremental if it exists
-    if inc_file.exists():
-        df_inc = pd.read_csv(inc_file)
-        if "review_id" in df_inc.columns and "id" not in df_inc.columns:
-            df_inc.rename(columns={"review_id": "id"}, inplace=True)
-    else:
-        df_inc = pd.DataFrame()
-        print("  No incremental file found — skipping incremental merge")
+    df_inc = pd.read_csv(inc_file) if inc_file.exists() else pd.DataFrame()
+    if "review_id" in df_inc.columns and "id" not in df_inc.columns:
+        df_inc.rename(columns={"review_id": "id"}, inplace=True)
 
     # Merge logic
     if not df_raw.empty and not df_inc.empty:
@@ -57,13 +50,29 @@ for provider_key in providers.keys():
         print(f"  No data available for {provider_key} — skipping")
         continue
 
-    # Deduplicate on Trustpilot review ID
+    # Deduplicate
     df_all.drop_duplicates(subset=["id"], inplace=True)
 
     # Save curated output
     output_file = CURATED_DIR / f"{provider_key}_reviews_all.csv"
     df_all.to_csv(output_file, index=False)
-
     print(f"  Saved {len(df_all)} reviews → {output_file}")
 
-print("\n✅ Merge complete for all providers.")
+    # ---------------------------
+    # UPDATE last_collected TIMESTAMP
+    # ---------------------------
+    if "published_date" in df_all.columns:
+        # Parse ISO strings to datetime and find the latest
+        df_all["published_date_parsed"] = pd.to_datetime(df_all["published_date"], utc=True, errors="coerce")
+        latest_ts = df_all["published_date_parsed"].max()
+        if pd.notna(latest_ts):
+            providers[provider_key]["last_collected"] = latest_ts.isoformat()
+            print(f"  Updated last_collected → {latest_ts.isoformat()}")
+
+# ---------------------------
+# WRITE UPDATED YAML BACK
+# ---------------------------
+with open(PROVIDERS_YAML, "w") as f:
+    yaml.safe_dump(providers, f, sort_keys=False)
+
+print("\n✅ Merge complete and providers.yaml updated.")
