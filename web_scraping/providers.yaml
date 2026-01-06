@@ -3,10 +3,30 @@ akc:
   url: "https://www.trustpilot.com/review/www.akcpetinsurance.com"
   last_collected: "2024-03-08T05:40:39.000Z"
 
+argos:
+  name: "Argos Pet Insurance"
+  url: "https://www.trustpilot.com/review/argospetinsurance.co.uk"
+  last_collected: "1900-01-01T00:00:00Z"
+
 aspca:
   name: "ASPCA"
   url: "https://www.trustpilot.com/review/aspcapetinsurance.com"
   last_collected: "2024-04-03T23:37:30.000Z"
+
+bivvy:
+  name: "Bivvy Pet Insurance"
+  url: "https://www.trustpilot.com/review/bivvy.com"
+  last_collected: "1900-01-01T00:00:00Z"
+
+covered:
+  name: "Covered Insurance"
+  url: "https://www.trustpilot.com/review/itscovered.com"
+  last_collected: "1900-01-01T00:00:00Z"
+
+dutch:
+  name: "Dutch"
+  url: "https://www.trustpilot.com/review/dutch.com"
+  last_collected: "1900-01-01T00:00:00Z"
 
 embrace:
   name: "Embrace"
@@ -33,10 +53,30 @@ lemonade:
   url: "https://www.trustpilot.com/review/lemonade.com"
   last_collected: "2024-04-03T15:32:19.000Z"
 
+manypets:
+  name: "ManyPets US"
+  url: "https://www.trustpilot.com/review/manypets.com/us"
+  last_collected: "1900-01-01T00:00:00Z"
+
+metlife:
+  name: "MetLife Pet Insurance"
+  url: "https://www.trustpilot.com/review/metlifepetinsurance.com"
+  last_collected: "1900-01-01T00:00:00Z"
+
+nationwide:
+  name: "Nationwide Pet Insurance"
+  url: "https://www.trustpilot.com/review/www.petinsurance.com"
+  last_collected: "1900-01-01T00:00:00Z"
+
 petsbest:
   name: "Pets Best"
   url: "https://www.trustpilot.com/review/petsbest.com"
   last_collected: "2024-04-03T21:33:21.000Z"
+
+prudent:
+  name: "Prudent Pet Insurance"
+  url: "https://www.trustpilot.com/review/prudentpet.com"
+  last_collected: "1900-01-01T00:00:00Z"
 
 pumpkin:
   name: "Pumpkin"
@@ -48,4 +88,7 @@ spot:
   url: "https://www.trustpilot.com/review/spotpet.com"
   last_collected: "2024-04-04T23:11:54.000Z"
 
-
+trupanion:
+  name: "Trupanion"
+  url: "https://www.trustpilot.com/review/trupanion.com"
+  last_collected: "1900-01-01T00:00:00Z"
