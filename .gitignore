@@ -1,3 +1,3 @@
 .DS_Store
-raw/*.csv
+web_scraping/raw/*.csv
 web_scraping/curated/*.csv
