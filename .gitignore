@@ -1,0 +1,3 @@
+.DS_Store
+web_scraping/raw/*.csv
+web_scraping/curated/*.csv
