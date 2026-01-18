@@ -1,7 +1,7 @@
 .DS_Store
 
 web_scraping/raw/*.csv
-web_scraping/intermediate/*.csv
+web_scraping/incremental/*.csv
 web_scraping/curated/*.csv
 
 # Conda / Miniforge
