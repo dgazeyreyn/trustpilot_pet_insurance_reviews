@@ -1,3 +1,14 @@
 .DS_Store
+
 web_scraping/raw/*.csv
+web_scraping/incremental/*.csv
 web_scraping/curated/*.csv
+
+# Conda / Miniforge
+ENTER/
+.env/
+.venv/
+Miniforge3-*.sh
+
+# Modeling outputs
+data/modeling/*.csv
