@@ -1,0 +1,18 @@
+name: trustpilot
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - scikit-learn
+  - umap-learn
+  - hdbscan
+  - numba
+  - llvmlite
+  - pip
+  - pip:
+      - bertopic
+      - sentence-transformers
+      - beautifulsoup4
+      - requests
