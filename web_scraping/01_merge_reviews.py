@@ -75,4 +75,4 @@ for provider_key in providers.keys():
 with open(PROVIDERS_YAML, "w") as f:
     yaml.safe_dump(providers, f, sort_keys=False)
 
-print("\n✅ Merge complete and providers.yaml updated.")
+print("\n Merge complete and providers.yaml updated.")
