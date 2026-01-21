@@ -42,6 +42,57 @@ trustpilot_pet_insurance_reviews/
 
 ---
 
+## Environment Setup
+
+This project relies on modern NLP tooling (e.g., BERTopic, sentence-transformers, PyTorch) that can be challenging to install via pip alone, particularly on macOS. For this reason, Conda is the recommended environment manager.
+
+### Prerequisites
+
+- Git
+- Conda (Miniforge or Anaconda recommended)
+    - Miniforge: https://github.com/conda-forge/miniforge
+
+### Create and Activate the Environment
+
+From the project root:
+
+conda env create -f environment.yml
+conda activate trustpilot
+
+This will install all required dependencies, including:
+
+- Python
+- pandas / numpy
+- BERTopic and NLP dependencies
+- PyTorch
+- numba / llvmlite (via conda-forge)
+
+Note: The environment has been validated using a clean clone to ensure reproducibility.
+
+### Verify Installation (Optional)
+
+You can quickly verify the core dependencies:
+
+python - <<EOF
+from bertopic import BERTopic
+import torch
+import numpy
+print("BERTopic, PyTorch, and NumPy are available.")
+EOF
+
+### Running the Pipeline
+
+With the environment active, scripts can be run directly from the project root, for example:
+
+python web_scraping/scraper.py
+python web_scraping/merge_reviews.py
+python modeling/04_bertopic_baseline.py
+python modeling/05_theme_labeling.py
+
+### Notes on requirements.txt
+
+A requirements.txt file is included for reference, but it is not sufficient on its own for installing BERTopic and related dependencies on all systems. The environment.yml file should be treated as the source of truth.
+
 ## Web Scraping & Incremental Ingestion
 
 ### Provider Configuration
