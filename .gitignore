@@ -12,3 +12,8 @@ Miniforge3-*.sh
 
 # Modeling outputs
 data/modeling/*.csv
+
+.ipynb_checkpoints/
+
+# Notebooks
+notebooks/*
