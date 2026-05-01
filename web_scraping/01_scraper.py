@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup as bs
 from datetime import datetime
 from pathlib import Path
 import time
+import random
 
 DATA_DIR = Path("incremental")
 DATA_DIR.mkdir(exist_ok=True)
@@ -13,10 +14,19 @@ DATA_DIR.mkdir(exist_ok=True)
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                   "AppleWebKit/537.36 (KHTML, like Gecko) "
-                  "Chrome/147.0.0.0 Safari/537.36"
+                  "Chrome/124.0.0.0 Safari/537.36",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept": "text/html,application/json",
+    "Connection": "keep-alive",
 }
 
-REQUEST_DELAY = 1.5  # seconds (polite scraping)
+BASE_DELAY = (2, 5)  # randomized delay range
+
+# ---------------------------
+# SESSION
+# ---------------------------
+session = requests.Session()
+session.headers.update(HEADERS)
 
 # ---------------------------
 # HELPERS
@@ -24,9 +34,34 @@ REQUEST_DELAY = 1.5  # seconds (polite scraping)
 def parse_iso_utc(ts: str) -> datetime:
     return datetime.fromisoformat(ts.replace("Z", "+00:00"))
 
+def fetch_with_retries(url, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            response = session.get(url, timeout=15)
+
+            if response.status_code == 200:
+                return response
+
+            elif response.status_code in (403, 429):
+                wait = (attempt + 1) * random.uniform(5, 15)
+                print(f"  ⚠️ Blocked ({response.status_code}). Retrying in {wait:.1f}s")
+                time.sleep(wait)
+
+            else:
+                response.raise_for_status()
+
+        except requests.RequestException as e:
+            wait = (attempt + 1) * 5
+            print(f"  ⚠️ Request error: {e}. Retrying in {wait}s")
+            time.sleep(wait)
+
+    return None
+
 def get_reviews_from_page(url: str) -> list:
-    response = requests.get(url, headers=HEADERS, timeout=15)
-    response.raise_for_status()
+    response = fetch_with_retries(url)
+
+    if not response:
+        return []
 
     soup = bs(response.content, "html.parser")
     results = soup.find(id="__NEXT_DATA__")
@@ -60,6 +95,7 @@ def scrape_provider(provider_key, provider_cfg):
 
         reviews = get_reviews_from_page(page_url)
         if not reviews:
+            print("  ⚠️ No reviews returned (possible block or end).")
             break
 
         for r in reviews:
@@ -89,7 +125,17 @@ def scrape_provider(provider_key, provider_cfg):
             break
 
         page += 1
-        time.sleep(REQUEST_DELAY)
+
+        # Random delay between requests
+        delay = random.uniform(*BASE_DELAY)
+        print(f"  Sleeping {delay:.2f}s")
+        time.sleep(delay)
+
+        # Occasional longer pause (every ~5 pages)
+        if page % 5 == 0:
+            long_pause = random.uniform(10, 20)
+            print(f"  Taking a longer pause: {long_pause:.1f}s")
+            time.sleep(long_pause)
 
     if not rows:
         print("  No new reviews found.")
