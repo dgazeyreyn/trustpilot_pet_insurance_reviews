@@ -154,7 +154,7 @@ def scrape_provider(provider_key, provider_cfg):
 # MAIN
 # ---------------------------
 def main():
-    with open("web_scraping/providers.yaml", "r") as f:
+    with open("providers.yaml", "r") as f:
         providers = yaml.safe_load(f)
 
     for provider_key, provider_cfg in providers.items():
