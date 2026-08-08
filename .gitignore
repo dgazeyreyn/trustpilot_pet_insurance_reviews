@@ -2,8 +2,9 @@
 
 web_scraping/raw/*.csv
 web_scraping/incremental/*.csv
-web_scraping/incremental/*.rtf
+web_scraping/incremental/*.csv
 web_scraping/curated/*.csv
+web_scraping/manual/*.rtf
 
 # Conda / Miniforge
 ENTER/
