@@ -54,7 +54,7 @@ def get_provider_domain(provider_cfg: dict) -> str:
 
 def load_providers() -> dict:
     """Load provider configuration."""
-    with open("web_scraping/providers.yaml", "r") as f:
+    with open("providers.yaml", "r") as f:
         return yaml.safe_load(f)
 
 
