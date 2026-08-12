@@ -1,13 +1,9 @@
 import json
-import random
 import time
+from pathlib import Path
 
 import pandas as pd
 import yaml
-
-from datetime import datetime
-from pathlib import Path
-
 from playwright.sync_api import sync_playwright
 
 
@@ -15,192 +11,113 @@ from playwright.sync_api import sync_playwright
 # CONFIGURATION
 # ============================================================
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-
-PROVIDERS_FILE = SCRIPT_DIR / "providers.yaml"
-DATA_DIR = SCRIPT_DIR / "incremental"
-
-DATA_DIR.mkdir(exist_ok=True)
-
 CDP_URL = "http://127.0.0.1:9222"
 
-# Conservative delays between page navigations.
-PAGE_DELAY = (3, 6)
+DATA_DIR = Path("web_scraping/incremental")
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# Longer pause every few pages.
-LONG_PAUSE_EVERY = 5
-LONG_PAUSE = (15, 30)
+PROVIDERS_FILE = Path("web_scraping/providers.yaml")
 
-# Maximum time to wait for NEXT_DATA after navigation.
-NEXT_DATA_TIMEOUT = 60_000
+# Conservative settings — reliability is more important than speed
+WAIT_AFTER_CLICK = 5
+WAIT_AFTER_REFRESH = 5
+NEXT_DATA_TIMEOUT = 30_000
+MAX_PAGES_PER_PROVIDER = 100
 
 
 # ============================================================
 # HELPERS
 # ============================================================
 
-def parse_iso_utc(ts: str) -> datetime:
-    """Convert Trustpilot ISO timestamp to datetime."""
+def parse_iso_utc(ts: str):
+    """Convert ISO timestamp to timezone-aware datetime."""
+    from datetime import datetime
+
     return datetime.fromisoformat(ts.replace("Z", "+00:00"))
 
-def extract_reviews(page) -> list:
-    """
-    Extract reviews directly from the browser DOM.
 
-    We intentionally use page.evaluate() rather than
-    Playwright's locator/wait_for_selector methods because
-    test_chrome_connection.py has already demonstrated that
-    NEXT_DATA exists in the Chrome session.
+def extract_reviews(page):
+    """
+    Extract Trustpilot reviews from the currently loaded
+    __NEXT_DATA__ element.
     """
 
-    print("  Looking for NEXT_DATA in browser DOM...")
+    print("Looking for NEXT_DATA...")
 
-    # --------------------------------------------------------
-    # Wait for NEXT_DATA to actually exist in the DOM.
-    # --------------------------------------------------------
+    next_data = page.locator('script#__NEXT_DATA__')
 
     try:
-        page.wait_for_function(
-            """
-            () => document.getElementById("__NEXT_DATA__") !== null
-            """,
+        next_data.wait_for(
+            state="attached",
             timeout=NEXT_DATA_TIMEOUT,
         )
-
     except Exception:
-        print("  ⚠️ NEXT_DATA was not found.")
-        print(f"  Page title: {page.title()}")
-        print(f"  Current URL: {page.url}")
-
-        # Additional diagnostic information.
-        try:
-            result = page.evaluate(
-                """
-                () => ({
-                    readyState: document.readyState,
-                    htmlLength: document.documentElement.outerHTML.length,
-                    nextDataCount:
-                        document.querySelectorAll("#__NEXT_DATA__").length
-                })
-                """
-            )
-
-            print(
-                f"  Document readyState: "
-                f"{result['readyState']}"
-            )
-
-            print(
-                f"  HTML size: "
-                f"{result['htmlLength']:,} characters"
-            )
-
-            print(
-                f"  NEXT_DATA count: "
-                f"{result['nextDataCount']}"
-            )
-
-        except Exception as e:
-            print(
-                f"  ⚠️ Could not collect diagnostics: {e}"
-            )
-
+        print("⚠️ NEXT_DATA not found.")
+        print(f"Page title: {page.title()}")
+        print(f"Current URL: {page.url}")
         return []
 
-    # --------------------------------------------------------
-    # Extract the script contents directly from the DOM.
-    # --------------------------------------------------------
+    text = next_data.text_content()
+
+    if not text:
+        print("⚠️ NEXT_DATA element is empty.")
+        return []
+
+    print(f"✓ NEXT_DATA found: {len(text):,} characters")
 
     try:
-        json_text = page.evaluate(
-            """
-            () => {
-                const element =
-                    document.getElementById("__NEXT_DATA__");
+        data = json.loads(text)
 
-                return element
-                    ? element.textContent
-                    : null;
-            }
-            """
-        )
+        reviews = data["props"]["pageProps"]["reviews"]
 
-    except Exception as e:
-        print(
-            f"  ⚠️ Could not read NEXT_DATA: {e}"
-        )
+        print(f"✓ Reviews found: {len(reviews)}")
+
+        return reviews
+
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        print(f"⚠️ Could not parse NEXT_DATA: {e}")
         return []
 
-    if not json_text:
-        print("  ⚠️ NEXT_DATA exists but is empty.")
-        return []
 
-    print(
-        f"  ✓ NEXT_DATA found: "
-        f"{len(json_text):,} characters"
-    )
-
-    # --------------------------------------------------------
-    # Parse JSON.
-    # --------------------------------------------------------
-
-    try:
-        json_object = json.loads(json_text)
-
-    except json.JSONDecodeError as e:
-        print(
-            f"  ⚠️ NEXT_DATA is not valid JSON: {e}"
-        )
-        return []
-
-    # --------------------------------------------------------
-    # Extract reviews.
-    # --------------------------------------------------------
-
-    try:
-        reviews = (
-            json_object
-            ["props"]
-            ["pageProps"]
-            ["reviews"]
-        )
-
-    except KeyError as e:
-        print(
-            f"  ⚠️ Expected Trustpilot data structure "
-            f"was not found. Missing key: {e}"
-        )
-        return []
-
-    print(
-        f"  ✓ Reviews found: {len(reviews)}"
-    )
-
-    return reviews
-
-def save_reviews(
-    rows: list,
-    provider_key: str,
-):
+def find_next_page_control(page):
     """
-    Save accumulated reviews to CSV.
+    Find the visible Trustpilot 'Next page' control.
+    """
 
-    This is intentionally called after every successful page
-    so progress is preserved if the scraper stops unexpectedly.
+    matches = page.get_by_text("Next page", exact=True)
+
+    count = matches.count()
+
+    print(f"Elements containing 'Next page': {count}")
+
+    if count == 0:
+        return None
+
+    for i in range(count):
+        candidate = matches.nth(i)
+
+        try:
+            if candidate.is_visible():
+                return candidate
+        except Exception:
+            continue
+
+    return None
+
+
+def save_reviews(provider_key, rows):
+    """
+    Save accumulated reviews to the provider's incremental CSV.
     """
 
     if not rows:
+        print("No new reviews to save.")
         return
 
     df = pd.DataFrame(rows)
 
     df.drop_duplicates(
         subset=["review_id"],
-        inplace=True,
-    )
-
-    df.sort_values(
-        by="published_date",
         inplace=True,
     )
 
@@ -215,34 +132,35 @@ def save_reviews(
     )
 
     print(
-        f"  💾 Saved {len(df)} accumulated reviews "
-        f"→ {output_path}"
-    )
-
-
-def navigate_with_chrome(page, url: str):
-    """
-    Ask the existing Chrome tab to navigate normally.
-
-    We intentionally avoid Playwright's page.goto().
-    """
-
-    print(f"  Navigating Chrome to:")
-    print(f"  {url}")
-
-    page.evaluate(
-        """url => {
-            window.location.href = url;
-        }""",
-        url,
+        f"💾 Saved {len(df)} accumulated reviews → "
+        f"{output_path}"
     )
 
 
 # ============================================================
-# SCRAPE f"{provider_key}
+# SCRAPE ONE PROVIDER
 # ============================================================
 
 def scrape_provider(page, provider_key, provider_cfg):
+    """
+    Scrape a provider using the existing Chrome session.
+
+    Pagination strategy:
+
+        Page 1
+          ↓
+        Extract NEXT_DATA
+          ↓
+        Click Next page
+          ↓
+        Wait
+          ↓
+        Refresh
+          ↓
+        Extract NEXT_DATA for next page
+          ↓
+        Repeat
+    """
 
     base_url = provider_cfg["url"]
 
@@ -250,163 +168,65 @@ def scrape_provider(page, provider_key, provider_cfg):
         provider_cfg["last_collected"]
     )
 
-    print("\n" + "=" * 65)
-    print("PROVIDER CONSERVATIVE SCRAPE")
-    print("=" * 65)
-
+    print("\n" + "=" * 70)
     print(f"Provider: {provider_cfg['name']}")
     print(f"Base URL: {base_url}")
-    print(
-        f"Last collected: "
-        f"{last_collected.isoformat()}"
+    print(f"Last collected: {last_collected.isoformat()}")
+    print("=" * 70)
+
+    # --------------------------------------------------------
+    # Make sure we're on the provider's first page
+    # --------------------------------------------------------
+
+    print("\nNavigating to provider page:")
+    print(base_url)
+
+    page.goto(
+        base_url,
+        wait_until="domcontentloaded",
+        timeout=60_000,
     )
 
-    # --------------------------------------------------------
-    # IMPORTANT:
-    # The user must have already opened and verified the
-    # Trustpilot page in Chrome.
-    # --------------------------------------------------------
-
-    print("\nChecking current Chrome tab...")
-
-    print(f"Current URL: {page.url}")
-    print(f"Page title: {page.title()}")
-
-    if "trustpilot.com" not in page.url:
-        raise RuntimeError(
-            "The active Chrome tab is not a Trustpilot page.\n"
-            "Please manually open the Trustpilot page in "
-            "the dedicated Chrome session and wait until the "
-            "actual reviews are visible."
-        )
-
-    print("✓ Trustpilot page detected.")
-
-    # --------------------------------------------------------
-    # PAGE 1
-    # --------------------------------------------------------
-
-    page_number = 1
-
-    print("\n" + "-" * 65)
-    print("PAGE 1")
-    print("-" * 65)
-
-    reviews = extract_reviews(page)
-
-    if not reviews:
-        raise RuntimeError(
-            "Could not extract reviews from the currently "
-            "displayed Trustpilot page."
-        )
+    print("Waiting for Trustpilot page...")
+    time.sleep(WAIT_AFTER_REFRESH)
 
     rows = []
+    page_number = 1
 
-    stop_scraping = False
+    while page_number <= MAX_PAGES_PER_PROVIDER:
 
-    for review in reviews:
+        print("\n" + "-" * 60)
+        print(f"## PAGE {page_number}")
+        print("-" * 60)
 
-        published_raw = (
-            review["dates"]["publishedDate"]
-        )
+        print(f"Current URL: {page.url}")
+        print(f"Page title: {page.title()}")
 
-        published_dt = parse_iso_utc(
-            published_raw
-        )
+        # ----------------------------------------------------
+        # Extract current page
+        # ----------------------------------------------------
 
-        if published_dt <= last_collected:
-            stop_scraping = True
-            break
-
-        rows.append({
-            "provider": provider_key,
-            "review_id": review["id"],
-            "rating": review["rating"],
-            "title": review["title"],
-            "text": review["text"],
-            "likes": review["likes"],
-            "filtered": review["filtered"],
-            "pending": review["isPending"],
-            "experienced_date": (
-                review["dates"]["experiencedDate"]
-            ),
-            "published_date": published_raw,
-            "source_url": page.url,
-        })
-
-    print(
-        f"  New reviews from page 1: {len(rows)}"
-    )
-
-    save_reviews(rows, provider_key)
-
-    if stop_scraping:
-        print(
-            "\n✓ Page 1 already reached "
-            "the last collected date."
-        )
-        return
-
-    # --------------------------------------------------------
-    # SUBSEQUENT PAGES
-    # --------------------------------------------------------
-
-    while True:
-
-        page_number += 1
-
-        print("\n" + "-" * 65)
-        print(f"PAGE {page_number}")
-        print("-" * 65)
-
-        page_url = (
-            f"{base_url}?page={page_number}"
-        )
-
-        # Remember the current URL before navigating.
-        previous_url = page.url
-
-        navigate_with_chrome(
-            page,
-            page_url,
-        )
-
-        # Wait for Chrome to actually navigate.
-        try:
-            page.wait_for_function(
-                """
-                previousUrl => window.location.href !== previousUrl
-                """,
-                previous_url,
-                timeout=NEXT_DATA_TIMEOUT,
-            )
-
-        except Exception:
-            print(
-                "  ⚠️ URL did not change within "
-                f"{NEXT_DATA_TIMEOUT / 1000:.0f} seconds."
-            )
-            print(
-                "  Current URL:",
-                page.url,
-            )
-            break
-
-        print(
-            f"  Current URL: {page.url}"
-        )
-
-        # Extract reviews from the newly loaded page.
         reviews = extract_reviews(page)
 
         if not reviews:
             print(
-                "  ⚠️ No reviews found. "
-                "Stopping safely."
+                "⚠️ No reviews returned. "
+                "Stopping provider."
             )
             break
 
-        page_rows = []
+        first_review_id = reviews[0]["id"]
+
+        print(
+            f"First review ID: {first_review_id}"
+        )
+
+        # ----------------------------------------------------
+        # Process reviews
+        # ----------------------------------------------------
+
+        new_reviews_this_page = 0
+        reached_last_collected = False
 
         for review in reviews:
 
@@ -418,11 +238,15 @@ def scrape_provider(page, provider_key, provider_cfg):
                 published_raw
             )
 
+            # Reviews are ordered newest → oldest.
+            #
+            # Once we reach the previously collected date,
+            # everything after this point is already known.
             if published_dt <= last_collected:
-                stop_scraping = True
+                reached_last_collected = True
                 break
 
-            page_rows.append({
+            rows.append({
                 "provider": provider_key,
                 "review_id": review["id"],
                 "rating": review["rating"],
@@ -438,59 +262,173 @@ def scrape_provider(page, provider_key, provider_cfg):
                 "source_url": page.url,
             })
 
+            new_reviews_this_page += 1
+
         print(
-            f"  New reviews from page {page_number}: "
-            f"{len(page_rows)}"
+            f"New reviews from page {page_number}: "
+            f"{new_reviews_this_page}"
         )
 
-        rows.extend(page_rows)
-
-        # Save immediately after every successful page.
+        # Save after every page so that progress isn't lost
+        # if a later page encounters an issue.
         save_reviews(
-            rows,
             provider_key,
+            rows,
         )
 
-        if stop_scraping:
+        # ----------------------------------------------------
+        # Determine whether we're finished
+        # ----------------------------------------------------
+
+        if reached_last_collected:
             print(
-                "\n✓ Reached previously collected "
-                "reviews."
+                "\n✓ Reached previously collected reviews."
             )
             break
 
         # ----------------------------------------------------
-        # CONSERVATIVE DELAY
+        # Find Next Page
         # ----------------------------------------------------
 
-        delay = random.uniform(*PAGE_DELAY)
+        print("\nLooking for 'Next page' control...")
+
+        next_button = find_next_page_control(page)
+
+        if not next_button:
+            print(
+                "✓ No visible Next page control found."
+            )
+            print("✓ End of pagination.")
+            break
+
+        print("✓ Next page control found.")
+
+        # Capture current first review ID so we can verify
+        # that the next page actually contains different data.
+        previous_first_review_id = first_review_id
+
+        # ----------------------------------------------------
+        # Click Next Page
+        # ----------------------------------------------------
+
+        print("\nClicking Next page...")
+
+        try:
+            next_button.click(
+                timeout=30_000
+            )
+        except Exception as e:
+            print(
+                f"⚠️ Could not click Next page: {e}"
+            )
+            break
+
+        print("✓ Click completed.")
 
         print(
-            f"\n  Sleeping {delay:.1f}s..."
+            f"Waiting {WAIT_AFTER_CLICK} seconds "
+            "for Trustpilot's pagination state to update..."
         )
 
-        time.sleep(delay)
+        time.sleep(WAIT_AFTER_CLICK)
 
-        if page_number % LONG_PAUSE_EVERY == 0:
+        print(f"URL after click: {page.url}")
 
-            long_pause = random.uniform(
-                *LONG_PAUSE
+        # ----------------------------------------------------
+        # Refresh
+        # ----------------------------------------------------
+
+        print("\nRefreshing page...")
+
+        try:
+            page.reload(
+                wait_until="domcontentloaded",
+                timeout=60_000,
             )
+        except Exception as e:
+            print(
+                f"⚠️ Page refresh error: {e}"
+            )
+            break
+
+        print("✓ Refresh completed.")
+
+        print(
+            f"Waiting {WAIT_AFTER_REFRESH} seconds "
+            "for NEXT_DATA..."
+        )
+
+        time.sleep(WAIT_AFTER_REFRESH)
+
+        print(f"URL after refresh: {page.url}")
+
+        # ----------------------------------------------------
+        # Validate that pagination actually advanced
+        # ----------------------------------------------------
+
+        print(
+            "\nValidating that the new page contains "
+            "different reviews..."
+        )
+
+        new_reviews = extract_reviews(page)
+
+        if not new_reviews:
+            print(
+                "⚠️ Could not extract reviews after "
+                "pagination refresh."
+            )
+            break
+
+        new_first_review_id = new_reviews[0]["id"]
+
+        print(
+            f"Previous first review ID: "
+            f"{previous_first_review_id}"
+        )
+
+        print(
+            f"New first review ID:      "
+            f"{new_first_review_id}"
+        )
+
+        if new_first_review_id == previous_first_review_id:
 
             print(
-                f"  Taking longer pause: "
-                f"{long_pause:.1f}s..."
+                "\n⚠️ Pagination validation failed."
             )
+            print(
+                "The refreshed page still appears to "
+                "contain the previous page's reviews."
+            )
+            print(
+                "Stopping rather than risking duplicate "
+                "or incorrect data."
+            )
+            break
 
-            time.sleep(long_pause)
+        print(
+            "✓ Pagination validated — new reviews found."
+        )
 
-    print("\n" + "=" * 65)
-    print(f"{provider_key} SCRAPE FINISHED")
-    print("=" * 65)
+        # We've already extracted the next page above.
+        # Keep those reviews in memory so we don't need
+        # another extraction call at the top of the loop.
+        reviews = new_reviews
 
-    print(
-        f"Total accumulated reviews: "
-        f"{len(rows)}"
-    )
+        page_number += 1
+
+    # --------------------------------------------------------
+    # Final summary
+    # --------------------------------------------------------
+
+    print("\n" + "=" * 70)
+    print(f"Provider complete: {provider_cfg['name']}")
+    print(f"Pages processed: {page_number}")
+    print(f"Total accumulated reviews: {len(rows)}")
+    print("=" * 70)
+
+    return rows
 
 
 # ============================================================
@@ -499,53 +437,28 @@ def scrape_provider(page, provider_key, provider_cfg):
 
 def main():
 
-    # --------------------------------------------------------
-    # Load providers
-    # --------------------------------------------------------
-
-    with open(PROVIDERS_FILE, "r") as f:
-        providers = yaml.safe_load(f)
-
-    # --------------------------------------------------------
-    # f"{provider_key} ONLY
-    #
-    # We intentionally do NOT loop through all providers yet.
-    # --------------------------------------------------------
-
-    provider_key = "trupanion"
-
-    if provider_key not in providers:
-        raise KeyError(
-            f"Provider '{provider_key}' was not found "
-            "in providers.yaml."
-        )
-
-    provider_cfg = providers[provider_key]
-
-    # --------------------------------------------------------
-    # Connect to existing Chrome
-    # --------------------------------------------------------
-
     print("Connecting to existing Chrome...")
 
-    with sync_playwright() as playwright:
+    with sync_playwright() as p:
 
-        browser = playwright.chromium.connect_over_cdp(
+        browser = p.chromium.connect_over_cdp(
             CDP_URL
         )
 
         print("✓ Connected to Chrome")
 
-        if not browser.contexts:
+        contexts = browser.contexts
+
+        if not contexts:
             raise RuntimeError(
                 "No Chrome browser contexts found."
             )
 
-        context = browser.contexts[0]
+        context = contexts[0]
 
-        print(
-            f"Open pages: {len(context.pages)}"
-        )
+        pages = context.pages
+
+        print(f"Open pages: {len(pages)}")
 
         # ----------------------------------------------------
         # Find Trustpilot tab
@@ -553,49 +466,78 @@ def main():
 
         trustpilot_page = None
 
-        for existing_page in context.pages:
+        for page in pages:
 
-            print(
-                f"  Tab: {existing_page.url}"
-            )
+            print(f"Tab: {page.url}")
 
-            if "trustpilot.com" in existing_page.url:
-
-                trustpilot_page = existing_page
-
+            if "trustpilot.com/review/" in page.url:
+                trustpilot_page = page
                 break
 
-        if trustpilot_page is None:
+        if not trustpilot_page:
             raise RuntimeError(
-                "\nNo Trustpilot tab was found.\n\n"
-                "Please:\n"
-                "1. Open the dedicated Chrome session.\n"
-                "2. Navigate to the Trustpilot page.\n"
-                "3. Wait until the actual reviews are visible.\n"
-                "4. Run this script again."
+                "No Trustpilot review tab found."
             )
 
-        print(
-            "\n✓ Using Trustpilot tab:"
-        )
+        page = trustpilot_page
 
-        print(
-            f"  {trustpilot_page.url}"
-        )
+        print("\n✓ Using Trustpilot tab:")
+        print(page.url)
 
         # ----------------------------------------------------
-        # Run f"{provider_key} scrape
+        # Load provider configuration
         # ----------------------------------------------------
 
-        scrape_provider(
-            trustpilot_page,
-            provider_key,
-            provider_cfg,
-        )
+        with open(PROVIDERS_FILE, "r") as f:
+            providers = yaml.safe_load(f)
 
-        print(
-            "\n✓ Script complete."
-        )
+        # ----------------------------------------------------
+        # Process providers
+        # ----------------------------------------------------
+
+        # for provider_key, provider_cfg in providers.items():
+
+        #     try:
+
+        #         scrape_provider(
+        #             page,
+        #             provider_key,
+        #             provider_cfg,
+        #         )
+
+        #     except Exception as e:
+
+        #         print(
+        #             f"\n✖ Error scraping "
+        #             f"{provider_key}: {e}"
+        #         )
+
+        #         print(
+        #             "Continuing to next provider..."
+        #         )
+
+        # print("\n✓ All providers processed.")
+        
+        # ----------------------------------------------------
+        # Process ONE provider for initial testing
+        # ----------------------------------------------------
+
+        provider_key = "trupanion"
+        provider_cfg = providers[provider_key]
+
+        try:
+            scrape_provider(
+                page,
+                provider_key,
+                provider_cfg,
+            )
+
+        except Exception as e:
+
+            print(
+                f"\n✖ Error scraping "
+                f"{provider_key}: {e}"
+            )
 
 
 if __name__ == "__main__":
