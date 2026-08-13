@@ -17,24 +17,59 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # Read all *_reviews_all.csv files
 # ----------------------------
 files = list(INPUT_DIR.glob("*_reviews_all.csv"))
+
 if not files:
     raise RuntimeError(f"No *_reviews_all.csv files found in {INPUT_DIR}")
 
 all_dfs = []
+
 for csv_path in files:
+
+    print(f"\nProcessing: {csv_path.name}")
+
     df = pd.read_csv(csv_path)
-    
+
     # ----------------------------
     # Normalize published_date
     # ----------------------------
-    if "published_date" in df.columns:
-        df["published_date"] = pd.to_datetime(df["published_date"], errors="coerce", utc=True)
+    if "published_date" in df.columns and "published" in df.columns:
+        # Use published_date when available;
+        # otherwise fall back to published
+        df["published_date"] = df["published_date"].fillna(df["published"])
+
+    elif "published_date" in df.columns:
+        pass
+
     elif "published" in df.columns:
-        df["published_date"] = pd.to_datetime(df["published"], errors="coerce", utc=True)
+        df["published_date"] = df["published"]
+
     else:
-        raise ValueError(f"{csv_path.name} missing both 'published' and 'published_date' columns")
-    
-    # Drop old 'published' column if it exists
+        raise ValueError(
+            f"{csv_path.name} missing both "
+            "'published' and 'published_date' columns"
+        )
+
+    # Convert to consistent datetime format
+    df["published_date"] = pd.to_datetime(
+        df["published_date"],
+        errors="coerce",
+        utc=True
+    )
+
+    # ----------------------------
+    # Temporary diagnostic
+    # ----------------------------
+    print(f"  Rows: {len(df)}")
+    print(f"  Min published_date: {df['published_date'].min()}")
+    print(f"  Max published_date: {df['published_date'].max()}")
+    print(
+        f"  Missing published_date: "
+        f"{df['published_date'].isna().sum()}"
+    )
+
+    # ----------------------------
+    # Drop old 'published' column
+    # ----------------------------
     if "published" in df.columns:
         df = df.drop(columns=["published"])
 
@@ -46,10 +81,15 @@ for csv_path in files:
     else:
         raise ValueError(f"{csv_path.name} missing 'id' column")
 
-    # Add provider column from filename (optional but helpful)
+    # ----------------------------
+    # Add provider column
+    # ----------------------------
     provider_name = csv_path.stem.replace("_reviews_all", "")
     df["provider"] = provider_name
 
+    # ----------------------------
+    # Add dataframe to list
+    # ----------------------------
     all_dfs.append(df)
 
 # ----------------------------
@@ -60,16 +100,35 @@ merged = pd.concat(all_dfs, ignore_index=True)
 # ----------------------------
 # Sanity checks
 # ----------------------------
-required_cols = {"review_id", "text", "rating", "published_date", "provider"}
-missing = required_cols - set(merged.columns)
-if missing:
-    raise ValueError(f"Merged dataframe missing columns: {missing}")
+required_cols = {
+    "review_id",
+    "text",
+    "rating",
+    "published_date",
+    "provider"
+}
 
-print(f"Merged {len(all_dfs)} files with {len(merged)} reviews")
-print(f"Date range: {merged['published_date'].min()} → {merged['published_date'].max()}")
+missing = required_cols - set(merged.columns)
+
+if missing:
+    raise ValueError(
+        f"Merged dataframe missing columns: {missing}"
+    )
+
+print(f"\nMerged {len(all_dfs)} files with {len(merged)} reviews")
+
+print(
+    f"Date range: "
+    f"{merged['published_date'].min()} → "
+    f"{merged['published_date'].max()}"
+)
+
+print("\nReviews by provider:")
+print(merged["provider"].value_counts().sort_index())
 
 # ----------------------------
 # Save
 # ----------------------------
 merged.to_csv(OUTPUT_FILE, index=False)
-print(f"Saved merged reviews to {OUTPUT_FILE}")
+
+print(f"\nSaved merged reviews to {OUTPUT_FILE}")
