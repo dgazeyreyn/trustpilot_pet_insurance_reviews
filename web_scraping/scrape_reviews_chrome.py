@@ -1111,7 +1111,7 @@ def main():
         # Change this value to the provider you want to run.
         # ----------------------------------------------------
 
-        provider_key = "petsbest"
+        provider_key = "trupanion"
 
         provider_cfg = providers[
             provider_key
