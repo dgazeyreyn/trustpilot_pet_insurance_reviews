@@ -2,7 +2,7 @@ import json
 import re
 import time
 from pathlib import Path
-from datetime import datetime, timezone
+from urllib.parse import urlparse, parse_qs
 
 import pandas as pd
 from playwright.sync_api import sync_playwright
@@ -12,108 +12,139 @@ from playwright.sync_api import sync_playwright
 # CONFIGURATION
 # ============================================================
 
-BASE_DIR = Path(
-    "/Users/davidreynolds/projects/trustpilot_pet_insurance_reviews"
-)
-
-INCREMENTAL_DIR = BASE_DIR / "web_scraping" / "incremental"
-
-
-# ------------------------------------------------------------
-# One-off backfill configuration
-# ------------------------------------------------------------
-
-BACKFILL_CONFIG = {
+PROVIDER_CONFIG = {
     "metlife": {
-        "name": "MetLife Pet Insurance",
         "url": "https://www.trustpilot.com/review/metlifepetinsurance.com",
         "start_date": "2026-01-01T00:00:00+00:00",
-        "end_date": "2026-07-05T23:59:59.999999+00:00",
+        "end_date": "2026-07-05T00:00:00+00:00",
     },
     "nationwide": {
-        "name": "Nationwide Pet Insurance",
         "url": "https://www.trustpilot.com/review/www.petinsurance.com",
         "start_date": "2026-01-01T00:00:00+00:00",
-        "end_date": "2026-03-24T23:59:59.999999+00:00",
+        "end_date": "2026-03-24T00:00:00+00:00",
     },
 }
 
 
-# ------------------------------------------------------------
-# Choose provider here
-# ------------------------------------------------------------
+# Change this to whichever provider you are backfilling.
+PROVIDER = "nationwide"
 
-PROVIDER = "metlife"
-
-# Change to:
-# PROVIDER = "nationwide"
-# when running the Nationwide backfill.
-
-
-# ------------------------------------------------------------
-# Timing
-# ------------------------------------------------------------
 
 PAGE_TRANSITION_WAIT = 5
 NEXT_DATA_TIMEOUT = 60_000
 NAVIGATION_TIMEOUT = 60_000
 
 
+BASE_DIR = Path(
+    "/Users/davidreynolds/projects/"
+    "trustpilot_pet_insurance_reviews"
+)
+
+INCREMENTAL_DIR = (
+    BASE_DIR / "web_scraping" / "incremental"
+)
+
+
 # ============================================================
-# HELPERS
+# DATE CONFIGURATION
 # ============================================================
 
-def parse_datetime(value):
-    """Parse a Trustpilot timestamp into UTC datetime."""
+config = PROVIDER_CONFIG[PROVIDER]
 
-    if value is None:
-        return None
+START_DATE = pd.Timestamp(
+    config["start_date"],
+    tz="UTC"
+)
 
-    try:
-        timestamp = pd.to_datetime(
-            value,
-            errors="coerce",
-            utc=True,
-        )
-
-        if pd.isna(timestamp):
-            return None
-
-        return timestamp.to_pydatetime()
-
-    except Exception:
-        return None
+END_DATE = pd.Timestamp(
+    config["end_date"],
+    tz="UTC"
+)
 
 
-def extract_page_number(url):
-    """Extract ?page=N from a Trustpilot URL."""
+# ============================================================
+# FILE PATH
+# ============================================================
 
-    if not url:
-        return None
+INCREMENTAL_FILE = (
+    INCREMENTAL_DIR
+    / f"{PROVIDER}_reviews_incremental.csv"
+)
 
-    match = re.search(r"[?&]page=(\d+)", url)
 
-    if match:
-        return int(match.group(1))
-
-    # Base URL is Page 1
-    return 1
-
+# ============================================================
+# HELPER FUNCTIONS
+# ============================================================
 
 def build_page_url(base_url, page_number):
-    """Build a Trustpilot page URL."""
+    """Build a Trustpilot URL for a specific page."""
 
-    if page_number <= 1:
+    if page_number == 1:
         return base_url
 
     return f"{base_url}?page={page_number}"
 
 
+def get_page_number_from_url(url):
+    """Extract ?page=N from a Trustpilot URL."""
+
+    parsed = urlparse(url)
+
+    query = parse_qs(parsed.query)
+
+    if "page" not in query:
+        return 1
+
+    try:
+        return int(query["page"][0])
+    except (ValueError, TypeError):
+        return None
+
+
+def get_page_number_from_title(title):
+    """
+    Extract the current page number from Trustpilot's title.
+
+    Example:
+        "... | 333 of 564"
+    """
+
+    match = re.search(
+        r"\|\s*(\d+)\s+of\s+(\d+)",
+        title
+    )
+
+    if not match:
+        return None
+
+    return int(match.group(1))
+
+
+def get_max_page_from_title(title):
+    """
+    Extract maximum page from Trustpilot's title.
+
+    Example:
+        "... | 333 of 564"
+    """
+
+    match = re.search(
+        r"\|\s*(\d+)\s+of\s+(\d+)",
+        title
+    )
+
+    if not match:
+        return None
+
+    return int(match.group(2))
+
+
 # ============================================================
-# CHROME CONNECTION
+# CONNECT TO EXISTING CHROME
 # ============================================================
 
 def connect_to_chrome(playwright):
+
     print("Connecting to existing Chrome...")
 
     browser = playwright.chromium.connect_over_cdp(
@@ -124,46 +155,51 @@ def connect_to_chrome(playwright):
 
     contexts = browser.contexts
 
-    print(f"Open browser contexts: {len(contexts)}")
-
-    for context in contexts:
-        print(f"  Pages: {len(context.pages)}")
+    print(
+        f"Open browser contexts: {len(contexts)}"
+    )
 
     if not contexts:
-        raise RuntimeError("No Chrome browser contexts found.")
+        raise RuntimeError(
+            "No browser contexts found."
+        )
 
-    context = contexts[0]
+    pages = contexts[0].pages
+
+    print(
+        f"Open pages: {len(pages)}"
+    )
+
+    for p in pages:
+        print(
+            f"  Tab: {p.url}"
+        )
 
     trustpilot_pages = [
-        p
-        for p in context.pages
+        p for p in pages
         if "trustpilot.com/review/" in p.url
     ]
 
     if not trustpilot_pages:
         raise RuntimeError(
-            "No Trustpilot tab found in the existing Chrome session."
+            "No Trustpilot tab found."
         )
 
     page = trustpilot_pages[0]
 
-    print("\n✓ Using Trustpilot tab:")
+    print(
+        "\n✓ Using Trustpilot tab:"
+    )
     print(page.url)
 
-    return browser, context, page
+    return browser, page
 
 
 # ============================================================
-# NEXT_DATA
+# EXTRACT NEXT_DATA
 # ============================================================
 
-def get_next_data(page):
-    """
-    Retrieve and parse Trustpilot's __NEXT_DATA__ element.
-
-    Uses the same structure that worked in
-    scrape_reviews_chrome.py.
-    """
+def extract_reviews(page):
 
     print("Looking for NEXT_DATA...")
 
@@ -178,62 +214,54 @@ def get_next_data(page):
         )
 
     except Exception:
-        print("⚠️ NEXT_DATA not found.")
 
-        try:
-            print(f"Page title: {page.title()}")
-            print(f"Current URL: {page.url}")
-        except Exception:
-            pass
+        print(
+            "⚠️ NEXT_DATA not found."
+        )
 
-        return None
+        print(
+            f"Page title: {page.title()}"
+        )
+
+        print(
+            f"Current URL: {page.url}"
+        )
+
+        return []
 
     try:
+
         text = next_data.text_content()
 
     except Exception as e:
+
         print(
             f"⚠️ Could not read NEXT_DATA: {e}"
         )
-        return None
+
+        return []
 
     if not text:
-        print("⚠️ NEXT_DATA is empty.")
-        return None
+
+        print(
+            "⚠️ NEXT_DATA element is empty."
+        )
+
+        return []
 
     print(
         f"✓ NEXT_DATA found: {len(text):,} characters"
     )
 
     try:
-        return json.loads(text)
 
-    except json.JSONDecodeError as e:
-        print(
-            f"⚠️ Could not parse NEXT_DATA JSON: {e}"
+        data = json.loads(text)
+
+        reviews = (
+            data["props"]
+                ["pageProps"]
+                ["reviews"]
         )
-        return None
-
-
-def extract_reviews(page):
-    """
-    Extract reviews using the known Trustpilot NEXT_DATA
-    structure used by scrape_reviews_chrome.py.
-    """
-
-    data = get_next_data(page)
-
-    if data is None:
-        return []
-
-    try:
-        reviews = data[
-            "props"
-        ][
-            "pageProps"
-        ][
-            "reviews"
-        ]
 
         print(
             f"✓ Reviews found: {len(reviews)}"
@@ -242,151 +270,167 @@ def extract_reviews(page):
         return reviews
 
     except (
+        json.JSONDecodeError,
         KeyError,
         TypeError,
     ) as e:
 
         print(
-            f"⚠️ Could not locate reviews in NEXT_DATA: {e}"
+            f"⚠️ Could not parse NEXT_DATA: {e}"
         )
 
         return []
 
 
 # ============================================================
-# PAGE DIAGNOSTICS
+# EXTRACT REVIEW DATE
 # ============================================================
 
-def get_page_diagnostics(page):
-    """Extract reviews and basic page diagnostics."""
+def get_review_published_date(review):
 
-    reviews = extract_reviews(page)
+    """
+    Extract the Trustpilot publication timestamp.
 
-    diagnostics = {
-        "reviews": reviews,
-        "count": len(reviews),
-        "first_id": None,
-        "first_date": None,
-        "oldest_date": None,
-        "newest_date": None,
-        "page_number": extract_page_number(page.url),
-    }
+    IMPORTANT:
+    This intentionally matches scrape_reviews_chrome.py.
+    """
 
-    if not reviews:
-        return diagnostics
+    try:
 
-    first = reviews[0]
+        published_raw = (
+            review["dates"]["publishedDate"]
+        )
 
-    diagnostics["first_id"] = first.get("id")
+        published_date = pd.to_datetime(
+            published_raw,
+            utc=True,
+            errors="coerce"
+        )
 
-    diagnostics["first_date"] = (
-        first.get("published")
-        or first.get("publishedDate")
-        or first.get("datePublished")
-    )
+        return published_date
+
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+    ):
+
+        return pd.NaT
+
+
+# ============================================================
+# REVIEW DIAGNOSTICS
+# ============================================================
+
+def get_review_id(review):
+
+    return review.get("id")
+
+
+def get_page_date_diagnostics(reviews):
 
     dates = []
 
     for review in reviews:
 
-        published = (
-            review.get("published")
-            or review.get("publishedDate")
-            or review.get("datePublished")
+        published_date = (
+            get_review_published_date(review)
         )
 
-        parsed = parse_datetime(published)
+        if pd.notna(published_date):
+            dates.append(published_date)
 
-        if parsed is not None:
-            dates.append(parsed)
+    if not dates:
 
-    if dates:
-        diagnostics["oldest_date"] = min(dates)
-        diagnostics["newest_date"] = max(dates)
+        return {
+            "oldest": None,
+            "newest": None,
+        }
 
-    return diagnostics
+    return {
+        "oldest": min(dates),
+        "newest": max(dates),
+    }
 
 
 # ============================================================
-# EXISTING INCREMENTAL DATA
+# FIND LAST SAVED PAGE
 # ============================================================
 
-def load_existing_reviews(provider):
-    """
-    Load the provider's existing incremental file.
+def get_last_saved_page():
 
-    Returns:
-        dataframe
-        highest page represented by source_url
-    """
+    if not INCREMENTAL_FILE.exists():
 
-    incremental_file = (
-        INCREMENTAL_DIR
-        / f"{provider}_reviews_incremental.csv"
+        print(
+            f"⚠️ Incremental file not found:"
+        )
+
+        print(INCREMENTAL_FILE)
+
+        raise RuntimeError(
+            "Cannot determine starting page."
+        )
+
+    df = pd.read_csv(
+        INCREMENTAL_FILE
     )
 
-    if incremental_file.exists():
+    if df.empty:
 
-        print(
-            f"\nLoading existing incremental file:"
-        )
-        print(incremental_file)
-
-        df = pd.read_csv(incremental_file)
-
-        print(
-            f"Existing rows: {len(df):,}"
+        raise RuntimeError(
+            "Incremental file is empty."
         )
 
-    else:
+    if "source_url" not in df.columns:
 
-        print(
-            f"\n⚠️ Existing incremental file not found:"
-        )
-        print(incremental_file)
-
-        df = pd.DataFrame()
-
-    highest_page = 1
-
-    if (
-        not df.empty
-        and "source_url" in df.columns
-    ):
-
-        pages = (
-            df["source_url"]
-            .dropna()
-            .apply(extract_page_number)
-            .dropna()
+        raise RuntimeError(
+            "Incremental file does not contain "
+            "'source_url'."
         )
 
-        if len(pages):
-            highest_page = int(pages.max())
+    pages = []
+
+    for url in df["source_url"].dropna():
+
+        page_number = (
+            get_page_number_from_url(url)
+        )
+
+        if page_number is not None:
+            pages.append(page_number)
+
+    if not pages:
+
+        raise RuntimeError(
+            "Could not determine page number "
+            "from source_url."
+        )
+
+    last_page = max(pages)
 
     print(
-        f"Highest page represented in existing file: "
-        f"{highest_page}"
+        f"✓ Highest successfully saved page: "
+        f"Page {last_page}"
     )
 
-    return df, highest_page, incremental_file
+    return last_page, df
 
 
 # ============================================================
-# NAVIGATION
+# NAVIGATE TO PAGE
 # ============================================================
 
-def navigate_to_page(page, page_number, base_url):
-    """Navigate to a specific Trustpilot page."""
+def navigate_to_page(page, page_number):
 
     url = build_page_url(
-        base_url,
-        page_number,
+        config["url"],
+        page_number
     )
 
     print(
-        f"\nNavigating to Page {page_number}:"
+        f"\nNavigating to:"
     )
+
     print(url)
 
     page.goto(
@@ -396,10 +440,13 @@ def navigate_to_page(page, page_number, base_url):
     )
 
     print(
-        f"Waiting {PAGE_TRANSITION_WAIT} seconds..."
+        f"Waiting {PAGE_TRANSITION_WAIT} "
+        "seconds for Trustpilot..."
     )
 
-    time.sleep(PAGE_TRANSITION_WAIT)
+    time.sleep(
+        PAGE_TRANSITION_WAIT
+    )
 
     print(
         f"Current URL: {page.url}"
@@ -409,54 +456,65 @@ def navigate_to_page(page, page_number, base_url):
         f"Page title: {page.title()}"
     )
 
-    return url
 
+# ============================================================
+# VALIDATE PAGE
+# ============================================================
 
-def click_previous(page):
-    """
-    Not used by this forward backfill.
+def validate_page_number(
+    page,
+    expected_page
+):
 
-    Kept here intentionally as a reminder that Trustpilot's
-    page navigation is controlled through the pagination links.
-    """
-
-    previous = page.locator(
-        'a[name="pagination-button-previous"]'
+    actual_page = (
+        get_page_number_from_url(
+            page.url
+        )
     )
 
-    if previous.count() == 0:
-        return False
+    if actual_page is None:
 
-    return True
-
-
-def click_next_and_refresh(
-    page,
-    expected_next_page,
-    previous_first_id,
-):
-    """
-    Click Trustpilot's Next page button.
-
-    Trustpilot updates the page state after the click but
-    frequently requires a refresh before NEXT_DATA reflects
-    the new page. This mirrors the working scraper logic.
-    """
+        actual_page = (
+            get_page_number_from_title(
+                page.title()
+            )
+        )
 
     print(
-        "\nLooking for 'Next page' control..."
+        f"Expected page: {expected_page}"
+    )
+
+    print(
+        f"Actual page:   {actual_page}"
+    )
+
+    return actual_page == expected_page
+
+
+# ============================================================
+# CLICK NEXT PAGE
+# ============================================================
+
+def click_next_page(page):
+
+    print(
+        "Looking for 'Next page' control..."
     )
 
     next_control = page.locator(
-        'a[name="pagination-button-next"]'
+        'a[aria-label="Next page"]'
     )
 
     if next_control.count() == 0:
 
-        # Fallback to the text-based selector.
-        next_control = page.get_by_text(
-            "Next page",
-            exact=True,
+        next_control = page.locator(
+            'a[name="pagination-button-next"]'
+        )
+
+    if next_control.count() == 0:
+
+        next_control = page.locator(
+            'a[data-pagination-name="pagination-button-next"]'
         )
 
     if next_control.count() == 0:
@@ -467,14 +525,36 @@ def click_next_and_refresh(
 
         return False
 
+    try:
+
+        next_control.first.wait_for(
+            state="visible",
+            timeout=10_000
+        )
+
+    except Exception:
+
+        print(
+            "⚠️ Next page control is not visible."
+        )
+
+        return False
+
     print(
         "✓ Next page control found."
     )
 
     try:
+
         next_control.first.click(
-            timeout=30_000
+            timeout=15_000
         )
+
+        print(
+            "✓ Click completed."
+        )
+
+        return True
 
     except Exception as e:
 
@@ -484,25 +564,51 @@ def click_next_and_refresh(
 
         return False
 
-    print("✓ Click completed.")
+
+# ============================================================
+# LOAD NEXT PAGE
+# ============================================================
+
+def load_next_page(
+    page,
+    current_page,
+    previous_reviews
+):
+
+    expected_page = current_page + 1
 
     print(
-        f"Waiting {PAGE_TRANSITION_WAIT} seconds..."
+        "\nClicking Next page..."
     )
 
-    time.sleep(PAGE_TRANSITION_WAIT)
+    if not click_next_page(page):
+
+        return None
+
+    print(
+        f"\nWaiting {PAGE_TRANSITION_WAIT} "
+        "seconds..."
+    )
+
+    time.sleep(
+        PAGE_TRANSITION_WAIT
+    )
 
     print(
         f"URL after click: {page.url}"
     )
 
     print(
-        f"Page title after click: {page.title()}"
+        f"Page title after click: "
+        f"{page.title()}"
     )
 
-    print("\nRefreshing page...")
+    print(
+        "\nRefreshing page..."
+    )
 
     try:
+
         page.reload(
             wait_until="domcontentloaded",
             timeout=NAVIGATION_TIMEOUT,
@@ -511,340 +617,359 @@ def click_next_and_refresh(
     except Exception as e:
 
         print(
-            f"⚠️ Page refresh raised: {e}"
+            f"⚠️ Refresh failed: {e}"
         )
 
-        return False
+        return None
 
-    time.sleep(PAGE_TRANSITION_WAIT)
+    time.sleep(
+        PAGE_TRANSITION_WAIT
+    )
 
     print(
         f"URL after refresh: {page.url}"
     )
 
     print(
-        f"Page title after refresh: {page.title()}"
+        f"Page title after refresh: "
+        f"{page.title()}"
     )
 
-    actual_page = extract_page_number(
-        page.url
-    )
-
-    print(
-        f"\nExpected page: {expected_next_page}"
-    )
-
-    print(
-        f"Actual page:   {actual_page}"
-    )
-
-    if actual_page != expected_next_page:
+    if not validate_page_number(
+        page,
+        expected_page
+    ):
 
         print(
-            "⚠️ Pagination validation failed."
+            "⚠️ Page validation failed."
         )
 
-        return False
-
-    diagnostics = get_page_diagnostics(
-        page
-    )
-
-    new_first_id = diagnostics[
-        "first_id"
-    ]
+        return None
 
     print(
         "\nValidating pagination..."
     )
 
+    new_reviews = extract_reviews(page)
+
+    if not new_reviews:
+
+        print(
+            "⚠️ No reviews extracted."
+        )
+
+        return None
+
+    previous_id = (
+        get_review_id(
+            previous_reviews[0]
+        )
+        if previous_reviews
+        else None
+    )
+
+    new_id = (
+        get_review_id(
+            new_reviews[0]
+        )
+        if new_reviews
+        else None
+    )
+
     print(
         f"Previous first review ID: "
-        f"{previous_first_id}"
+        f"{previous_id}"
     )
 
     print(
         f"New first review ID:      "
-        f"{new_first_id}"
+        f"{new_id}"
     )
 
-    if (
-        previous_first_id
-        and new_first_id
-        and previous_first_id == new_first_id
-    ):
+    if previous_id == new_id:
 
         print(
-            "⚠️ Review IDs did not change."
+            "⚠️ Pagination validation failed."
         )
 
-        return False
+        print(
+            "The new page appears to contain "
+            "the same reviews."
+        )
+
+        return None
 
     print(
         "✓ Pagination validated."
     )
 
-    return True
+    return new_reviews
 
 
 # ============================================================
-# REVIEW FILTERING
+# PROCESS PAGE
 # ============================================================
 
-def filter_reviews(
+def process_page(
     reviews,
-    start_date,
-    end_date,
+    existing_ids
 ):
-    """
-    Keep only reviews within the requested backfill window.
-    """
 
-    selected = []
+    diagnostics = (
+        get_page_date_diagnostics(
+            reviews
+        )
+    )
+
+    oldest = diagnostics["oldest"]
+    newest = diagnostics["newest"]
+
+    print(
+        f"Reviews on page: {len(reviews)}"
+    )
+
+    print(
+        f"Oldest review: {oldest}"
+    )
+
+    print(
+        f"Newest review: {newest}"
+    )
+
+    in_range = []
 
     for review in reviews:
 
-        published = (
-            review.get("published")
-            or review.get("publishedDate")
-            or review.get("datePublished")
-        )
+        review_id = get_review_id(review)
 
-        published_dt = parse_datetime(
-            published
-        )
-
-        if published_dt is None:
+        if not review_id:
             continue
 
+        published_date = (
+            get_review_published_date(
+                review
+            )
+        )
+
+        if pd.isna(published_date):
+            continue
+
+        # ----------------------------------------------------
+        # Requested backfill range:
+        #
+        # START_DATE <= published_date < END_DATE
+        # ----------------------------------------------------
+
         if (
-            start_date
-            <= published_dt
-            <= end_date
+            published_date >= START_DATE
+            and published_date < END_DATE
         ):
-            selected.append(review)
 
-    return selected
+            if review_id not in existing_ids:
 
+                in_range.append(
+                    review
+                )
 
-def review_is_older_than_start(
-    reviews,
-    start_date,
-):
-    """
-    Because Trustpilot pages run newest → oldest, once the
-    oldest review on a page is before the backfill start date,
-    we can stop after processing that page.
-    """
+    print(
+        f"Reviews in backfill range: "
+        f"{len(in_range)}"
+    )
 
-    dates = []
-
-    for review in reviews:
-
-        published = (
-            review.get("published")
-            or review.get("publishedDate")
-            or review.get("datePublished")
-        )
-
-        parsed = parse_datetime(
-            published
-        )
-
-        if parsed is not None:
-            dates.append(parsed)
-
-    if not dates:
-        return False
-
-    return min(dates) < start_date
+    return (
+        in_range,
+        oldest,
+        newest
+    )
 
 
 # ============================================================
 # CONVERT REVIEWS TO DATAFRAME
 # ============================================================
 
-def reviews_to_dataframe(
-    reviews,
-    source_url,
-):
-    """
-    Convert Trustpilot review dictionaries into a dataframe.
+def reviews_to_dataframe(reviews):
 
-    We preserve the raw review fields and add source_url.
-    """
+    rows = []
 
-    if not reviews:
-        return pd.DataFrame()
+    for review in reviews:
 
-    df = pd.DataFrame(reviews)
+        published_raw = (
+            review["dates"]["publishedDate"]
+        )
 
-    df["source_url"] = source_url
+        published_date = pd.to_datetime(
+            published_raw,
+            utc=True,
+            errors="coerce"
+        )
 
-    return df
+        if pd.isna(published_date):
+            continue
+
+        rows.append(
+            {
+                "id": review.get("id"),
+                "text": review.get("text"),
+                "title": review.get("title"),
+                "rating": review.get("rating"),
+
+                "published_date":
+                    published_date.isoformat(),
+
+                "source_url":
+                    review.get(
+                        "links",
+                        {}
+                    ).get(
+                        "permalink"
+                    ),
+            }
+        )
+
+    return pd.DataFrame(rows)
 
 
 # ============================================================
-# SAVE
+# APPEND REVIEWS
 # ============================================================
 
-def append_and_deduplicate(
-    existing_df,
-    new_df,
-    output_file,
-):
-    """
-    Append new reviews to the existing incremental file and
-    deduplicate using review ID.
-    """
+def append_reviews(new_reviews):
+
+    if not new_reviews:
+
+        return 0
+
+    new_df = reviews_to_dataframe(
+        new_reviews
+    )
 
     if new_df.empty:
-        print(
-            "No new reviews to save."
+
+        return 0
+
+    if INCREMENTAL_FILE.exists():
+
+        existing_df = pd.read_csv(
+            INCREMENTAL_FILE
         )
-        return existing_df
+
+    else:
+
+        existing_df = pd.DataFrame()
+
+    # --------------------------------------------------------
+    # Make sure source_url exists
+    # --------------------------------------------------------
+
+    if "source_url" not in new_df.columns:
+
+        new_df["source_url"] = None
+
+    # --------------------------------------------------------
+    # Ensure existing IDs are respected
+    # --------------------------------------------------------
+
+    if (
+        not existing_df.empty
+        and "id" in existing_df.columns
+    ):
+
+        new_df = new_df[
+            ~new_df["id"].isin(
+                existing_df["id"]
+            )
+        ]
+
+    if new_df.empty:
+
+        return 0
 
     combined = pd.concat(
         [
             existing_df,
-            new_df,
+            new_df
         ],
-        ignore_index=True,
+        ignore_index=True
     )
 
-    if "id" in combined.columns:
-
-        before = len(combined)
-
-        combined = combined.drop_duplicates(
-            subset=["id"],
-            keep="first",
-        )
-
-        duplicates = (
-            before - len(combined)
-        )
-
-        if duplicates:
-            print(
-                f"Removed {duplicates:,} duplicate review(s)."
-            )
+    combined.drop_duplicates(
+        subset=["id"],
+        inplace=True
+    )
 
     combined.to_csv(
-        output_file,
-        index=False,
+        INCREMENTAL_FILE,
+        index=False
     )
 
-    print(
-        f"💾 Saved {len(combined):,} total reviews → "
-        f"{output_file}"
-    )
-
-    return combined
+    return len(new_df)
 
 
 # ============================================================
-# MAIN BACKFILL
+# MAIN
 # ============================================================
 
 def main():
 
-    if PROVIDER not in BACKFILL_CONFIG:
+    print(
+        "\n============================================================"
+    )
 
-        raise ValueError(
-            f"Unknown provider: {PROVIDER}"
+    print(
+        f"ONE-TIME HISTORICAL BACKFILL: "
+        f"{PROVIDER.upper()}"
+    )
+
+    print(
+        "============================================================"
+    )
+
+    print(
+        f"Start date: {START_DATE}"
+    )
+
+    print(
+        f"End date:   {END_DATE}"
+    )
+
+    print(
+        f"Incremental file:"
+    )
+
+    print(
+        INCREMENTAL_FILE
+    )
+
+    print(
+        "\nIMPORTANT:"
+    )
+
+    print(
+        "providers.yaml will NOT be modified."
+    )
+
+    # --------------------------------------------------------
+    # Find existing progress
+    # --------------------------------------------------------
+
+    last_page, existing_df = (
+        get_last_saved_page()
+    )
+
+    existing_ids = set()
+
+    if "id" in existing_df.columns:
+
+        existing_ids = set(
+            existing_df["id"]
+            .dropna()
+            .astype(str)
         )
 
-    config = BACKFILL_CONFIG[
-        PROVIDER
-    ]
-
-    provider_name = config["name"]
-    base_url = config["url"]
-
-    start_date = parse_datetime(
-        config["start_date"]
-    )
-
-    end_date = parse_datetime(
-        config["end_date"]
-    )
-
     print(
-        "\n============================================================"
+        f"Existing review IDs: "
+        f"{len(existing_ids):,}"
     )
-    print(
-        "ONE-OFF TRUSTPILOT HISTORICAL BACKFILL"
-    )
-    print(
-        "============================================================"
-    )
-
-    print(
-        f"Provider:    {provider_name}"
-    )
-
-    print(
-        f"Start date:  {start_date.isoformat()}"
-    )
-
-    print(
-        f"End date:    {end_date.isoformat()}"
-    )
-
-    print(
-        "\n⚠️ providers.yaml will NOT be modified."
-    )
-
-    # --------------------------------------------------------
-    # Existing data
-    # --------------------------------------------------------
-
-    (
-        existing_df,
-        highest_existing_page,
-        incremental_file,
-    ) = load_existing_reviews(
-        PROVIDER
-    )
-
-    # --------------------------------------------------------
-    # Important:
-    #
-    # We start one page AFTER the highest page represented
-    # in the existing incremental file.
-    #
-    # This assumes the existing incremental scrape progressed
-    # sequentially through Trustpilot pages.
-    # --------------------------------------------------------
-
-    start_page = (
-        highest_existing_page + 1
-    )
-
-    print(
-        "\n============================================================"
-    )
-
-    print(
-        f"Existing data through Page "
-        f"{highest_existing_page}"
-    )
-
-    print(
-        f"Backfill will begin at Page "
-        f"{start_page}"
-    )
-
-    print(
-        "============================================================"
-    )
-
-    accumulated = []
-
-    current_page_number = start_page
-
-    previous_first_id = None
 
     # --------------------------------------------------------
     # Connect to Chrome
@@ -852,210 +977,257 @@ def main():
 
     with sync_playwright() as playwright:
 
-        browser, context, page = (
+        browser, page = (
             connect_to_chrome(
                 playwright
             )
         )
 
+        current_page = last_page
+
         # ----------------------------------------------------
-        # Navigate to first page
+        # Navigate to saved page
         # ----------------------------------------------------
+
+        print(
+            "\n============================================================"
+        )
+
+        print(
+            f"RESUMING FROM PAGE {current_page}"
+        )
+
+        print(
+            "============================================================"
+        )
 
         navigate_to_page(
             page,
-            current_page_number,
-            base_url,
+            current_page
         )
+
+        if not validate_page_number(
+            page,
+            current_page
+        ):
+
+            raise RuntimeError(
+                "Could not verify starting page."
+            )
+
+        current_reviews = extract_reviews(
+            page
+        )
+
+        if not current_reviews:
+
+            raise RuntimeError(
+                "Could not extract reviews "
+                "from starting page."
+            )
+
+        total_added = 0
+
+        # ----------------------------------------------------
+        # Process starting page
+        # ----------------------------------------------------
+
+        (
+            new_reviews,
+            oldest,
+            newest
+        ) = process_page(
+            current_reviews,
+            existing_ids
+        )
+
+        added = append_reviews(
+            new_reviews
+        )
+
+        if added:
+
+            total_added += added
+
+            existing_ids.update(
+                get_review_id(r)
+                for r in new_reviews
+                if get_review_id(r)
+            )
+
+        # ----------------------------------------------------
+        # Determine whether starting page is already
+        # older than our requested range.
+        # ----------------------------------------------------
+
+        if (
+            oldest is not None
+            and oldest < START_DATE
+        ):
+
+            print(
+                "\n✓ Starting page already reaches "
+                "the January 1 boundary."
+            )
+
+        # ----------------------------------------------------
+        # Continue forward
+        # ----------------------------------------------------
 
         while True:
 
-            print(
-                "\n------------------------------------------------------------"
-            )
-
-            print(
-                f"PAGE {current_page_number}"
-            )
-
-            print(
-                "------------------------------------------------------------"
-            )
-
-            print(
-                f"Current URL: {page.url}"
-            )
-
-            print(
-                f"Page title: {page.title()}"
-            )
-
-            diagnostics = (
-                get_page_diagnostics(
-                    page
-                )
-            )
-
-            reviews = diagnostics[
-                "reviews"
-            ]
-
-            if not reviews:
-
-                print(
-                    "⚠️ No reviews found."
-                )
-
-                print(
-                    "Stopping to avoid risking "
-                    "incorrect data."
-                )
-
-                break
-
-            print(
-                f"Reviews on page: "
-                f"{len(reviews)}"
-            )
-
-            print(
-                f"First review ID: "
-                f"{diagnostics['first_id']}"
-            )
-
-            print(
-                f"Oldest review: "
-                f"{diagnostics['oldest_date']}"
-            )
-
-            print(
-                f"Newest review: "
-                f"{diagnostics['newest_date']}"
-            )
-
             # ------------------------------------------------
-            # Filter to requested date range
+            # If the entire current page is older than the
+            # start boundary, we're done.
             # ------------------------------------------------
 
-            matching = filter_reviews(
-                reviews,
-                start_date,
-                end_date,
-            )
-
-            print(
-                f"Reviews in backfill range: "
-                f"{len(matching)}"
-            )
-
-            if matching:
-
-                page_url = page.url
-
-                page_df = (
-                    reviews_to_dataframe(
-                        matching,
-                        page_url,
-                    )
-                )
-
-                accumulated.append(
-                    page_df
-                )
-
-                print(
-                    f"✓ Added {len(page_df)} "
-                    f"backfill reviews."
-                )
-
-            # ------------------------------------------------
-            # Stop once we've reached reviews older than the
-            # beginning of the requested range.
-            # ------------------------------------------------
-
-            if review_is_older_than_start(
-                reviews,
-                start_date,
+            if (
+                oldest is not None
+                and oldest < START_DATE
             ):
 
                 print(
-                    "\n✓ Reached reviews older than "
-                    f"{start_date.date()}."
-                )
-
-                print(
-                    "Backfill range has been covered."
+                    "\n✓ Reached the beginning "
+                    "of the backfill range."
                 )
 
                 break
 
             # ------------------------------------------------
-            # Prepare next page
+            # Check whether we're already at the final page.
             # ------------------------------------------------
 
-            next_page = (
-                current_page_number + 1
-            )
-
-            print(
-                f"\nMoving to Page {next_page}..."
-            )
-
-            previous_first_id = (
-                diagnostics["first_id"]
-            )
-
-            success = (
-                click_next_and_refresh(
-                    page,
-                    next_page,
-                    previous_first_id,
+            max_page = (
+                get_max_page_from_title(
+                    page.title()
                 )
             )
 
-            if not success:
+            if (
+                max_page is not None
+                and current_page >= max_page
+            ):
+
+                print(
+                    "\n✓ Reached the final Trustpilot page."
+                )
+
+                break
+
+            # ------------------------------------------------
+            # Move to next page
+            # ------------------------------------------------
+
+            print(
+                "\n============================================================"
+            )
+
+            print(
+                f"PAGE {current_page} → "
+                f"{current_page + 1}"
+            )
+
+            print(
+                "============================================================"
+            )
+
+            next_reviews = load_next_page(
+                page,
+                current_page,
+                current_reviews
+            )
+
+            if next_reviews is None:
 
                 print(
                     "\n⚠️ Pagination failed."
                 )
 
                 print(
-                    "Stopping rather than risking "
-                    "duplicate or incorrect data."
+                    "Stopping to avoid duplicate "
+                    "or incorrect data."
                 )
 
                 break
 
-            current_page_number = (
-                next_page
+            current_page += 1
+
+            current_reviews = next_reviews
+
+            # ------------------------------------------------
+            # Process new page
+            # ------------------------------------------------
+
+            (
+                new_reviews,
+                oldest,
+                newest
+            ) = process_page(
+                current_reviews,
+                existing_ids
             )
 
+            added = append_reviews(
+                new_reviews
+            )
+
+            if added:
+
+                total_added += added
+
+                existing_ids.update(
+                    get_review_id(r)
+                    for r in new_reviews
+                    if get_review_id(r)
+                )
+
+                print(
+                    f"✓ Added {added} new reviews."
+                )
+
+            else:
+
+                print(
+                    "No new reviews added."
+                )
+
+            # ------------------------------------------------
+            # Boundary diagnostics
+            # ------------------------------------------------
+
+            if oldest is not None:
+
+                print(
+                    f"Page {current_page} "
+                    f"oldest review: {oldest}"
+                )
+
+            # ------------------------------------------------
+            # Stop after processing the page that reaches
+            # January 1, 2026.
+            # ------------------------------------------------
+
+            if (
+                oldest is not None
+                and oldest < START_DATE
+            ):
+
+                print(
+                    "\n✓ January 1, 2026 boundary reached."
+                )
+
+                break
+
         # ----------------------------------------------------
-        # Close browser connection
+        # Final summary
         # ----------------------------------------------------
-
-        try:
-            browser.close()
-        except Exception:
-            pass
-
-    # ========================================================
-    # SAVE RESULTS
-    # ========================================================
-
-    if accumulated:
-
-        backfill_df = pd.concat(
-            accumulated,
-            ignore_index=True,
-        )
 
         print(
             "\n============================================================"
         )
 
         print(
-            "BACKFILL RESULTS"
+            "BACKFILL COMPLETE"
         )
 
         print(
@@ -1063,116 +1235,32 @@ def main():
         )
 
         print(
-            f"New reviews collected: "
-            f"{len(backfill_df):,}"
-        )
-
-        # ----------------------------------------------------
-        # Deduplicate against existing reviews
-        # ----------------------------------------------------
-
-        if (
-            "id" in backfill_df.columns
-            and "id" in existing_df.columns
-        ):
-
-            existing_ids = set(
-                existing_df["id"]
-                .dropna()
-                .astype(str)
-            )
-
-            before = len(
-                backfill_df
-            )
-
-            backfill_df = (
-                backfill_df[
-                    ~backfill_df["id"]
-                    .astype(str)
-                    .isin(existing_ids)
-                ]
-            )
-
-            already_existing = (
-                before
-                - len(backfill_df)
-            )
-
-            if already_existing:
-
-                print(
-                    f"Excluded {already_existing:,} "
-                    "reviews already present in incremental file."
-                )
-
-        print(
-            f"New unique reviews to append: "
-            f"{len(backfill_df):,}"
-        )
-
-        if not backfill_df.empty:
-
-            final_df = (
-                append_and_deduplicate(
-                    existing_df,
-                    backfill_df,
-                    incremental_file,
-                )
-            )
-
-            # ------------------------------------------------
-            # Date diagnostics
-            # ------------------------------------------------
-
-            if "published" in backfill_df.columns:
-
-                dates = pd.to_datetime(
-                    backfill_df["published"],
-                    errors="coerce",
-                    utc=True,
-                )
-
-                print(
-                    "\nBackfilled date range:"
-                )
-
-                print(
-                    f"  Min: {dates.min()}"
-                )
-
-                print(
-                    f"  Max: {dates.max()}"
-                )
-
-        else:
-
-            print(
-                "\nNo new unique reviews needed "
-                "to be added."
-            )
-
-    else:
-
-        print(
-            "\n============================================================"
+            f"Provider:          {PROVIDER}"
         )
 
         print(
-            "NO BACKFILL REVIEWS FOUND"
+            f"Pages processed:   through Page {current_page}"
+        )
+
+        print(
+            f"Reviews added:     {total_added}"
+        )
+
+        print(
+            f"Date range:        {START_DATE} → {END_DATE}"
+        )
+
+        print(
+            f"Output file:       {INCREMENTAL_FILE}"
+        )
+
+        print(
+            "\nproviders.yaml was NOT modified."
         )
 
         print(
             "============================================================"
         )
-
-    print(
-        "\n✓ Backfill script complete."
-    )
-
-    print(
-        "providers.yaml was not modified."
-    )
 
 
 if __name__ == "__main__":
