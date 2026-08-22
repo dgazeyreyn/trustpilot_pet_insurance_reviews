@@ -33,9 +33,9 @@ PROVIDERS_FILE = Path("web_scraping/providers.yaml")
 # ------------------------------------------------------------
 
 BACKFILL_CONFIG = {
-    "trupanion": {
+    "akc": {
         "start_date": pd.Timestamp(
-    "2026-01-01T00:00:00+00:00"
+    "2025-08-01T00:00:00+00:00"
 )
     }
 }
@@ -1517,7 +1517,7 @@ def main():
         # ----------------------------------------------------
 
         providers_to_run = [
-            "trupanion"
+            "akc"
         ]
 
         for provider_key in providers_to_run:
