@@ -2,6 +2,7 @@ from pathlib import Path
 import pandas as pd
 from bertopic import BERTopic
 import re
+from sklearn.feature_extraction.text import CountVectorizer
 
 # ----------------------------
 # Paths
@@ -65,9 +66,20 @@ df["clean_text"] = df["text"].apply(clean_text)
 documents = df["clean_text"].tolist()
 
 # ----------------------------
+# Remove stopwords
+# ----------------------------
+
+vectorizer_model = CountVectorizer(
+    stop_words="english",
+    ngram_range=(1, 2),   # capture phrases like "claim denied", "customer service", "price increase"
+    min_df=5               # drop ultra-rare tokens/noise
+)
+
+# ----------------------------
 # Fit BERTopic (baseline)
 # ----------------------------
 topic_model = BERTopic(
+    vectorizer_model=vectorizer_model,
     language="english",
     min_topic_size=200,
     nr_topics=15,
