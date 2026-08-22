@@ -17,9 +17,15 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # ----------------------------
 df = pd.read_csv(INPUT_FILE)
 
+# -----------------------------------------------------------
+# Exclude Dutch (Telehealth vs. Indemnity Insurance Provider)
+# -----------------------------------------------------------
+
+df_filtered = df[df['provider'] != 'Dutch'].reset_index(drop=True)
+
 # Basic hygiene
-df = df.dropna(subset=["text"])
-texts = df["text"].astype(str).tolist()
+df_filtered = df_filtered.dropna(subset=["text"])
+texts = df_filtered["text"].astype(str).tolist()
 
 print(f"Loaded {len(texts):,} reviews")
 
