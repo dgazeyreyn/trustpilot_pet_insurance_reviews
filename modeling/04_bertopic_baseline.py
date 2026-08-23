@@ -22,7 +22,6 @@ df = pd.read_csv(INPUT_FILE)
 # -----------------------------------------------------------
 
 df_filtered = df[df['provider'] != 'dutch'].reset_index(drop=True)
-print(df_filtered)
 
 # Basic hygiene
 df_filtered = df_filtered.dropna(subset=["text"])
@@ -34,41 +33,42 @@ print(f"Loaded {len(texts):,} reviews")
 # Build provider name list dynamically
 # ------------------------------------
 
-# Create providers list
-providers = (
-    df_filtered["provider"]
-    .dropna()
-    .unique()
-    .tolist()
-)
-
-# Normalize provider names for regex
-provider_patterns = [
-    re.escape(p.lower().replace("_", " "))
-    for p in providers
+provider_phrases = [
+    'akc', 'aspca',
+    'embrace', 'fetch',
+    'figo',
+    'healthy paws', 'healthypaws',
+    'lemonade',
+    'met life', 'metlife',
+    'nationwide',
+    'pets best', 'petsbest',
+    'prudent', 'pumpkin',
+    'spot', 'trupanion'
 ]
+
+# Sort longest-first so multi-word phrases are tried before any shorter overlaps
+sorted_phrases = sorted(provider_phrases, key=len, reverse=True)
+
+# One compiled regex, word-boundary-safe, case-insensitive
+provider_pattern = re.compile(
+    r'\b(?:' + '|'.join(re.escape(p) for p in sorted_phrases) + r')\b',
+    flags=re.IGNORECASE
+)
 
 # -----------------
 # Clean review text
 # -----------------
 
-# Define cleaning function
 def clean_text(text: str) -> str:
     if not isinstance(text, str):
         return ""
 
     text = text.lower()
-
-    # Remove provider names
-    for pattern in provider_patterns:
-        text = re.sub(pattern, "", text)
-
-    # Collapse whitespace
-    text = re.sub(r"\s+", " ", text).strip()
+    text = provider_pattern.sub(" ", text)   # single-pass phrase removal
+    text = re.sub(r"\s+", " ", text).strip() # collapse whitespace
 
     return text
 
-# Apply function
 df_filtered["clean_text"] = df_filtered["text"].apply(clean_text)
 documents = df_filtered["clean_text"].tolist()
 
