@@ -22,6 +22,7 @@ df = pd.read_csv(INPUT_FILE)
 # -----------------------------------------------------------
 
 df_filtered = df[df['provider'] != 'dutch'].reset_index(drop=True)
+print(df_filtered)
 
 # Basic hygiene
 df_filtered = df_filtered.dropna(subset=["text"])
@@ -35,7 +36,7 @@ print(f"Loaded {len(texts):,} reviews")
 
 # Create providers list
 providers = (
-    df["provider"]
+    df_filtered["provider"]
     .dropna()
     .unique()
     .tolist()
@@ -68,8 +69,8 @@ def clean_text(text: str) -> str:
     return text
 
 # Apply function
-df["clean_text"] = df["text"].apply(clean_text)
-documents = df["clean_text"].tolist()
+df_filtered["clean_text"] = df_filtered["text"].apply(clean_text)
+documents = df_filtered["clean_text"].tolist()
 
 # ----------------------------
 # Remove stopwords
@@ -101,11 +102,11 @@ topics, probs = topic_model.fit_transform(documents)
 # ----------------------------
 # Attach results
 # ----------------------------
-df["topic"] = topics
+df_filtered["topic"] = topics
 
 # Save enriched dataset
 output_path = OUTPUT_DIR / "reviews_with_topics.csv"
-df.to_csv(output_path, index=False)
+df_filtered.to_csv(output_path, index=False)
 
 print(f"Saved results to: {output_path}")
 
