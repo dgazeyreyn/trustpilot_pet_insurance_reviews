@@ -2,7 +2,7 @@ from pathlib import Path
 import pandas as pd
 from bertopic import BERTopic
 import re
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, ENGLISH_STOP_WORDS
 
 # ----------------------------
 # Paths
@@ -21,7 +21,7 @@ df = pd.read_csv(INPUT_FILE)
 # Exclude Dutch (Telehealth vs. Indemnity Insurance Provider)
 # -----------------------------------------------------------
 
-df_filtered = df[df['provider'] != 'Dutch'].reset_index(drop=True)
+df_filtered = df[df['provider'] != 'dutch'].reset_index(drop=True)
 
 # Basic hygiene
 df_filtered = df_filtered.dropna(subset=["text"])
@@ -75,8 +75,11 @@ documents = df["clean_text"].tolist()
 # Remove stopwords
 # ----------------------------
 
+domain_stopwords = {'pet', 'pets', 'insurance', 'pet insurance', 'vet', 'dog', 'dogs', 'claim', 'claims', 'pets', 'years', 'coverage', 'company', 'time', 'great', 'just'}
+custom_stop_words = list(ENGLISH_STOP_WORDS.union(domain_stopwords))
+
 vectorizer_model = CountVectorizer(
-    stop_words="english",
+    stop_words=custom_stop_words,
     ngram_range=(1, 2),   # capture phrases like "claim denied", "customer service", "price increase"
     min_df=5               # drop ultra-rare tokens/noise
 )
@@ -111,3 +114,6 @@ print(f"Saved results to: {output_path}")
 # ----------------------------
 topic_info = topic_model.get_topic_info()
 print(topic_info.head(10))
+
+topic_2_words = [word for word, score in topic_model.get_topic(0)]
+print(topic_2_words)
