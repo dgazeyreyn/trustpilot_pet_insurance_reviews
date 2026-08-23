@@ -3,6 +3,7 @@ import pandas as pd
 from bertopic import BERTopic
 import re
 from sklearn.feature_extraction.text import CountVectorizer, ENGLISH_STOP_WORDS
+from umap import UMAP
 
 # ----------------------------
 # Paths
@@ -88,6 +89,14 @@ vectorizer_model = CountVectorizer(
 # ----------------------------
 # Fit BERTopic (baseline)
 # ----------------------------
+umap_model = UMAP(
+    n_neighbors=15,      # or whatever you're currently using / BERTopic's defaults
+    n_components=5,
+    min_dist=0.0,
+    metric='cosine',
+    random_state=42
+)
+
 topic_model = BERTopic(
     vectorizer_model=vectorizer_model,
     language="english",
@@ -116,5 +125,4 @@ print(f"Saved results to: {output_path}")
 topic_info = topic_model.get_topic_info()
 print(topic_info.head(10))
 
-topic_2_words = [word for word, score in topic_model.get_topic(0)]
-print(topic_2_words)
+topic_model.save("bertopic_model_full_corpus", serialization="safetensors")
