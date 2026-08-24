@@ -15,3 +15,6 @@ Miniforge3-*.sh
 data/modeling/*.csv
 data/modeling/bertopic_model_*/
 *.safetensors
+
+# Notebooks
+notebooks/*.ipynb
