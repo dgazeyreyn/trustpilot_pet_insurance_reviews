@@ -4,6 +4,8 @@ from bertopic import BERTopic
 import re
 from sklearn.feature_extraction.text import CountVectorizer, ENGLISH_STOP_WORDS
 from umap import UMAP
+import contractions
+from bertopic.vectorizers import ClassTfidfTransformer
 
 # ----------------------------
 # Paths
@@ -64,6 +66,7 @@ def clean_text(text: str) -> str:
     if not isinstance(text, str):
         return ""
 
+    text = contractions.fix(text)
     text = text.lower()
     text = provider_pattern.sub(" ", text)   # single-pass phrase removal
     text = re.sub(r"\s+", " ", text).strip() # collapse whitespace
@@ -77,7 +80,11 @@ documents = df_filtered["clean_text"].tolist()
 # Remove stopwords
 # ----------------------------
 
-domain_stopwords = {'pet', 'pets', 'insurance', 'pet insurance', 'vet', 'dog', 'dogs', 'claim', 'claims', 'pets', 'years', 'coverage', 'company', 'time', 'great', 'just'}
+domain_stopwords = {'pet', 'pets', 'insurance', 'pet insurance', 'vet',
+                    'dog', 'dogs', 'claim', 'claims', 'pets',
+                    'year', 'years', 'coverage', 'company', 'time',
+                    'great', 'just', 'ive', 'quick', 'easy', 'process',
+                    'best', 'did'}
 custom_stop_words = list(ENGLISH_STOP_WORDS.union(domain_stopwords))
 
 vectorizer_model = CountVectorizer(
@@ -97,8 +104,15 @@ umap_model = UMAP(
     random_state=42
 )
 
+ctfidf_model = ClassTfidfTransformer(
+    reduce_frequent_words=True,
+    bm25_weighting=True
+)
+
 topic_model = BERTopic(
+    umap_model=umap_model,
     vectorizer_model=vectorizer_model,
+    ctfidf_model=ctfidf_model,
     language="english",
     min_topic_size=200,
     nr_topics=15,
