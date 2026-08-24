@@ -84,7 +84,7 @@ domain_stopwords = {'pet', 'pets', 'insurance', 'pet insurance', 'vet',
                     'dog', 'dogs', 'claim', 'claims', 'pets',
                     'year', 'years', 'coverage', 'company', 'time',
                     'great', 'just', 'ive', 'quick', 'easy', 'process',
-                    'best', 'did'}
+                    'best', 'did', 'cat', 'cats', 'kitten', 'kittens', 'kitty'}
 custom_stop_words = list(ENGLISH_STOP_WORDS.union(domain_stopwords))
 
 vectorizer_model = CountVectorizer(
