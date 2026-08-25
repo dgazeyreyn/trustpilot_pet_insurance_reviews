@@ -96,13 +96,13 @@ vectorizer_model = CountVectorizer(
 # ----------------------------
 # Fit BERTopic (baseline)
 # ----------------------------
-# umap_model = UMAP(
-#     n_neighbors=15,      # or whatever you're currently using / BERTopic's defaults
-#     n_components=5,
-#     min_dist=0.0,
-#     metric='cosine',
-#     random_state=42
-# )
+umap_model = UMAP(
+    n_neighbors=15,      # or whatever you're currently using / BERTopic's defaults
+    n_components=5,
+    min_dist=0.0,
+    metric='cosine',
+    random_state=42
+)
 
 ctfidf_model = ClassTfidfTransformer(
     reduce_frequent_words=True,
@@ -110,7 +110,7 @@ ctfidf_model = ClassTfidfTransformer(
 )
 
 topic_model = BERTopic(
-    # umap_model=umap_model,
+    umap_model=umap_model,
     vectorizer_model=vectorizer_model,
     ctfidf_model=ctfidf_model,
     language="english",
