@@ -32,7 +32,7 @@ keep_providers = [
     'spot', 'trupanion'
 ]
 
-df_filtered = df[df['provider'].isin('keep_providers').reset_index(drop=True)]
+df_filtered = df[df['provider'].isin(keep_providers).reset_index(drop=True)]
 
 # Basic hygiene
 df_filtered = df_filtered.dropna(subset=["text"])
