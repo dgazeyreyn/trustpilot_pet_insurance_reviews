@@ -21,10 +21,18 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 df = pd.read_csv(INPUT_FILE)
 
 # -----------------------------------------------------------
-# Exclude Dutch (Telehealth vs. Indemnity Insurance Provider)
+# Provider Exclusions
 # -----------------------------------------------------------
+keep_providers = [
+    'aspca', 'embrace',
+    'fetch', 'figo',
+    'healthypaws', 'metlife',
+    'nationwide', 'petsbest',
+    'prudent', 'pumpkin',
+    'spot', 'trupanion'
+]
 
-df_filtered = df[df['provider'] != 'dutch'].reset_index(drop=True)
+df_filtered = df[df['provider'].isin('keep_providers').reset_index(drop=True)]
 
 # Basic hygiene
 df_filtered = df_filtered.dropna(subset=["text"])
@@ -37,16 +45,18 @@ print(f"Loaded {len(texts):,} reviews")
 # ------------------------------------
 
 provider_phrases = [
-    'akc', 'aspca',
-    'embrace', 'fetch',
+    'aspca',
+    'embrace',
+    'fetch',
     'figo',
     'healthy paws', 'healthypaws',
-    'lemonade',
     'met life', 'metlife',
     'nationwide',
     'pets best', 'petsbest',
-    'prudent', 'pumpkin',
-    'spot', 'trupanion'
+    'prudent',
+    'pumpkin',
+    'spot',
+    'trupanion'
 ]
 
 # Sort longest-first so multi-word phrases are tried before any shorter overlaps
