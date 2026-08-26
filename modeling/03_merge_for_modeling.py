@@ -29,49 +29,12 @@ for csv_path in files:
 
     df = pd.read_csv(csv_path)
 
-    # ----------------------------
-    # Normalize published_date
-    # ----------------------------
-    # if "published_date" in df.columns and "published" in df.columns:
-    #     # Use published_date when available;
-    #     # otherwise fall back to published
-    #     df["published_date"] = df["published_date"].fillna(df["published"])
-
-    # elif "published_date" in df.columns:
-    #     pass
-
-    # elif "published" in df.columns:
-    #     df["published_date"] = df["published"]
-
-    # else:
-    #     raise ValueError(
-    #         f"{csv_path.name} missing both "
-    #         "'published' and 'published_date' columns"
-    #     )
-
     # Convert to consistent datetime format
     df["published_date"] = pd.to_datetime(
         df["published_date"],
         errors="coerce",
         utc=True
     )
-
-    # ----------------------------
-    # Temporary diagnostic
-    # ----------------------------
-    # print(f"  Rows: {len(df)}")
-    # print(f"  Min published_date: {df['published_date'].min()}")
-    # print(f"  Max published_date: {df['published_date'].max()}")
-    # print(
-    #     f"  Missing published_date: "
-    #     f"{df['published_date'].isna().sum()}"
-    # )
-
-    # ----------------------------
-    # Drop old 'published' column
-    # ----------------------------
-    # if "published" in df.columns:
-    #     df = df.drop(columns=["published"])
 
     # ----------------------------
     # Rename review ID
