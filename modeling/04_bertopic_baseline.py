@@ -41,7 +41,7 @@ texts = df_filtered["text"].astype(str).tolist()
 print(f"Loaded {len(texts):,} reviews")
 
 # ------------------------------------
-# Build provider name list dynamically
+# Build provider name list
 # ------------------------------------
 
 provider_phrases = [
@@ -68,6 +68,21 @@ provider_pattern = re.compile(
     flags=re.IGNORECASE
 )
 
+# ------------------------------------
+# Build species and affect list
+# ------------------------------------
+
+species_and_affect_terms = [
+    'dog', 'dogs', 'cat', 'cats', 'kitten', 'kittens', 'kitty', 'feline',
+    'fur baby', 'fur babies', 'furbaby', 'furbabies', 'fur-baby',
+]
+
+sorted_terms = sorted(species_and_affect_terms, key=len, reverse=True)
+species_affect_pattern = re.compile(
+    r'\b(?:' + '|'.join(re.escape(t) for t in sorted_terms) + r')\b',
+    flags=re.IGNORECASE
+)
+
 # -----------------
 # Clean review text
 # -----------------
@@ -79,6 +94,7 @@ def clean_text(text: str) -> str:
     text = contractions.fix(text)
     text = text.lower()
     text = provider_pattern.sub(" ", text)   # single-pass phrase removal
+    text = species_affect_pattern.sub(" ", text)   # NEW — strip from raw text, pre-embedding
     text = re.sub(r"\s+", " ", text).strip() # collapse whitespace
 
     return text
@@ -90,11 +106,12 @@ documents = df_filtered["clean_text"].tolist()
 # Remove stopwords
 # ----------------------------
 
-domain_stopwords = {'pet', 'pets', 'insurance', 'pet insurance', 'vet',
-                    'dog', 'dogs', 'claim', 'claims', 'pets',
-                    'year', 'years', 'coverage', 'company', 'time',
-                    'great', 'just', 'ive', 'quick', 'easy', 'process',
-                    'best', 'did', 'cat', 'cats', 'kitten', 'kittens', 'kitty'}
+domain_stopwords = {
+    'pet', 'pets', 'insurance', 'pet insurance', 'vet',
+    'claim', 'claims', 'year', 'years', 'coverage', 'company',
+    'time', 'great', 'just', 'ive', 'quick', 'easy', 'process',
+    'best', 'did'
+}
 custom_stop_words = list(ENGLISH_STOP_WORDS.union(domain_stopwords))
 
 vectorizer_model = CountVectorizer(
