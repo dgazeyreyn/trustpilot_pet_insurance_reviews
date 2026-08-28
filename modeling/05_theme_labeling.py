@@ -14,52 +14,84 @@ Purpose:
 
 import pandas as pd
 from pathlib import Path
+import numpy as np
+
+# Set max rows to 50
+pd.set_option('display.max_rows', 15)
 
 # ----------------------------
 # Paths
 # ----------------------------
 BASE_DIR = Path(__file__).resolve().parents[1]  # adjust if running from project root
-INPUT_REVIEWS = BASE_DIR / "data" / "modeling" / "reviews_for_modeling.csv"
+# INPUT_REVIEWS = BASE_DIR / "data" / "modeling" / "reviews_for_modeling.csv"
 INPUT_TOPICS  = BASE_DIR / "data" / "modeling" / "reviews_with_topics.csv"
+INPUT_SUBTOPICS  = BASE_DIR / "data" / "modeling" / "reviews_with_topic1_subtopics.csv"
 OUTPUT_DIR    = BASE_DIR / "data" / "modeling"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ----------------------------
 # Load data
 # ----------------------------
-reviews = pd.read_csv(INPUT_REVIEWS)
-topics  = pd.read_csv(INPUT_TOPICS)
+topics = pd.read_csv(INPUT_TOPICS)
+subtopics  = pd.read_csv(INPUT_SUBTOPICS)
 
 # ----------------------------
-# Topic → Theme Mapping
+# Join data
 # ----------------------------
-topic_map = {
-    -1: "Other / Generic",
-     0: "Other / Generic",
-     1: "Customer Service / Claims Support",
-     2: "App / Digital Experience",
-     3: "Other / Generic",
-     4: "Reimbursement Speed",
-     5: "Claims Ease"
-}
+topics_indexed = topics.set_index('review_id')
+subtopics_indexed = subtopics.set_index('review_id')
+result = topics_indexed.join(subtopics_indexed[['topic']], rsuffix='_df2')
 
-# ----------------------------
-# Merge topics with reviews
-# ----------------------------
-reviews_topics = reviews.merge(
-    topics[['review_id', 'topic']],
-    on='review_id',
-    how='left'
+conditions = [
+    (result['topic'] == 1) & (result['topic_df2'] == 0),
+    (result['topic'] == 2) & (result['topic_df2'].isna()),
+    (result['topic'] == 4) & (result['topic_df2'].isna()),
+    (result['topic'] == 6) & (result['topic_df2'].isna()),
+    (result['topic'] == 1) & (result['topic_df2'] == 1),
+    (result['topic'] == 8) & (result['topic_df2'].isna()),
+    (result['topic'] == 1) & (result['topic_df2'] == -1),
+    (result['topic'] == 3) & (result['topic_df2'].isna()),
+    (result['topic'] == 1) & (result['topic_df2'] == 6),
+    (result['topic'] == 1) & (result['topic_df2'] == 5),
+    (result['topic'] == 1) & (result['topic_df2'].isin([2, 4])),
+    (result['topic'] == 5) & (result['topic_df2'].isna()),
+    (result['topic'] == -1) & (result['topic_df2'].isna()),
+    (result['topic'] == 9) & (result['topic_df2'].isna()),
+    (result['topic'] == 10) & (result['topic_df2'].isna()),
+    (result['topic'] == 0) & (result['topic_df2'].isna()),
+    (result['topic'] == 1) & (result['topic_df2'] == 3),
+    (result['topic'] == 7) & (result['topic_df2'].isna())
+]
+
+categories = [
+    'App Experience',
+    'App Experience',
+    'Claims Filing Process',
+    'Concierge/Named-Rep',
+    'Emotional Support/Compassionate Care',
+    'General Service Satisfaction',
+    'General/Mixed Claims Narrative',
+    'Policy Administration & Billing',
+    'Pre-existing Condition/Denial',
+    'Premium Increases',
+    'Reimbursement/Payment Experience',
+    'Reimbursement/Payment Experience',
+    'Short/Low-Content',
+    'Short/Low-Content',
+    'Short/Low-Content',
+    'Sign-up/Enrollment',
+    'Sign-up/Enrollment',
+    'Sign-up/Enrollment'
+]
+
+result['theme'] = np.select(
+    conditions,
+    categories,
+    default='Other'
 )
 
-# Map human-readable theme
-reviews_topics['theme'] = reviews_topics['topic'].map(topic_map)
-
-# Reorder columns for clarity
-reviews_topics = reviews_topics[['review_id','provider','rating','published_date','topic','theme','text']]
-
 # Save merged review + theme file
-reviews_topics.to_csv(OUTPUT_DIR / "reviews_with_themes.csv", index=False)
+result.to_csv(OUTPUT_DIR / "reviews_with_themes.csv", index=False)
 print("Saved: reviews_with_themes.csv")
 
 # ----------------------------
@@ -67,21 +99,19 @@ print("Saved: reviews_with_themes.csv")
 # ----------------------------
 
 # 1. Theme counts by provider
-theme_counts = reviews_topics.groupby(['provider','theme']).size().reset_index(name='count')
+theme_counts = result.groupby(['provider','theme']).size().reset_index(name='count')
 theme_counts.to_csv(OUTPUT_DIR / "theme_counts_by_provider.csv", index=False)
 print("Saved: theme_counts_by_provider.csv")
 
 # 2. Theme average rating by provider
-theme_ratings = reviews_topics.groupby(['provider','theme'])['rating'].mean().reset_index(name='avg_rating')
+theme_ratings = result.groupby(['provider','theme'])['rating'].mean().reset_index(name='avg_rating')
 theme_ratings.to_csv(OUTPUT_DIR / "theme_avg_rating_by_provider.csv", index=False)
 print("Saved: theme_avg_rating_by_provider.csv")
 
 # 3. Monthly trends of themes by provider
-reviews_topics['published_date'] = pd.to_datetime(reviews_topics['published_date'], errors='coerce')
-reviews_topics['year_month'] = reviews_topics['published_date'].dt.to_period('M')
+result['published_date'] = pd.to_datetime(result['published_date'], errors='coerce')
+result['year_month'] = result['published_date'].dt.to_period('M')
 
-monthly_trends = reviews_topics.groupby(['provider','theme','year_month']).size().reset_index(name='count')
+monthly_trends = result.groupby(['provider','theme','year_month']).size().reset_index(name='count')
 monthly_trends.to_csv(OUTPUT_DIR / "theme_monthly_trends_by_provider.csv", index=False)
 print("Saved: theme_monthly_trends_by_provider.csv")
-
-print("All Tableau-ready outputs created successfully!")
