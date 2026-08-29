@@ -93,25 +93,3 @@ result['theme'] = np.select(
 # Save merged review + theme file
 result.to_csv(OUTPUT_DIR / "reviews_with_themes.csv", index=False)
 print("Saved: reviews_with_themes.csv")
-
-# ----------------------------
-# Aggregations for Tableau
-# ----------------------------
-
-# 1. Theme counts by provider
-theme_counts = result.groupby(['provider','theme']).size().reset_index(name='count')
-theme_counts.to_csv(OUTPUT_DIR / "theme_counts_by_provider.csv", index=False)
-print("Saved: theme_counts_by_provider.csv")
-
-# 2. Theme average rating by provider
-theme_ratings = result.groupby(['provider','theme'])['rating'].mean().reset_index(name='avg_rating')
-theme_ratings.to_csv(OUTPUT_DIR / "theme_avg_rating_by_provider.csv", index=False)
-print("Saved: theme_avg_rating_by_provider.csv")
-
-# 3. Monthly trends of themes by provider
-result['published_date'] = pd.to_datetime(result['published_date'], errors='coerce')
-result['year_month'] = result['published_date'].dt.to_period('M')
-
-monthly_trends = result.groupby(['provider','theme','year_month']).size().reset_index(name='count')
-monthly_trends.to_csv(OUTPUT_DIR / "theme_monthly_trends_by_provider.csv", index=False)
-print("Saved: theme_monthly_trends_by_provider.csv")
