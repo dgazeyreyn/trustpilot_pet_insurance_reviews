@@ -39,3 +39,8 @@ df['year_month'] = df['published_date'].dt.to_period('M')
 monthly_trends = df.groupby(['provider','theme','year_month']).size().reset_index(name='count')
 monthly_trends.to_csv(OUTPUT_DIR / "theme_monthly_trends_by_provider.csv", index=False)
 print("Saved: theme_monthly_trends_by_provider.csv")
+
+# 4. Theme average sentiment score by provider
+theme_sentiment = df.groupby(['provider','theme'])['sentiment_score'].mean().reset_index(name='avg_sentiment_score')
+theme_sentiment.to_csv(OUTPUT_DIR / "theme_avg_sentiment_by_provider.csv", index=False)
+print("Saved: theme_avg_sentiment_by_provider.csv")
