@@ -44,3 +44,31 @@ print("Saved: theme_monthly_trends_by_provider.csv")
 theme_sentiment = df.groupby(['provider','theme'])['sentiment_score'].mean().reset_index(name='avg_sentiment_score')
 theme_sentiment.to_csv(OUTPUT_DIR / "theme_avg_sentiment_by_provider.csv", index=False)
 print("Saved: theme_avg_sentiment_by_provider.csv")
+
+# 5. Rating vs. sentiment correlation by theme  
+theme_corr = (
+    df.groupby('theme')
+      .agg(correlation=('sentiment_score', lambda x: x.corr(df.loc[x.index, 'rating'])))
+      .reset_index()
+)
+
+theme_corr.to_csv(OUTPUT_DIR / "rating_vs_sentiment_corr_by_theme.csv", index=False)
+print("Saved: rating_vs_sentiment_corr_by_theme.csv")
+
+# 6. Rating vs. sentiment correlation by provider
+provider_corr = (
+    df.groupby('provider')
+      .agg(correlation=('sentiment_score', lambda x: x.corr(df.loc[x.index, 'rating'])))
+      .reset_index()
+)
+provider_corr.to_csv(OUTPUT_DIR / "rating_vs_sentiment_corr_by_provider.csv", index=False)
+print("Saved: rating_vs_sentiment_corr_by_provider.csv")
+
+# 7. Rating vs. sentiment correlation by provider by theme
+provider_theme_corr = (
+    df.groupby(['provider', 'theme'])
+      .agg(correlation=('sentiment_score', lambda x: x.corr(df.loc[x.index, 'rating'])))
+      .reset_index()
+)
+provider_theme_corr.to_csv(OUTPUT_DIR / "rating_vs_sentiment_corr_by_provider_theme.csv", index=False)
+print("Saved: rating_vs_sentiment_corr_by_provider_theme.csv")
