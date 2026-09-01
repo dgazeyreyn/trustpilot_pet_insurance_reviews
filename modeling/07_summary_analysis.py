@@ -28,7 +28,14 @@ theme_counts.to_csv(OUTPUT_DIR / "theme_counts_by_provider.csv", index=False)
 print("Saved: theme_counts_by_provider.csv")
 
 # 2. Theme average rating by provider
-theme_ratings = df.groupby(['provider','theme'])['rating'].mean().reset_index(name='avg_rating')
+theme_ratings = (
+    df.groupby(['provider', 'theme'])
+      .agg(
+          avg_sentiment_score=('rating', 'mean'),
+          count=('rating', 'count')
+      )
+      .reset_index()
+)
 theme_ratings.to_csv(OUTPUT_DIR / "theme_avg_rating_by_provider.csv", index=False)
 print("Saved: theme_avg_rating_by_provider.csv")
 
@@ -41,7 +48,14 @@ monthly_trends.to_csv(OUTPUT_DIR / "theme_monthly_trends_by_provider.csv", index
 print("Saved: theme_monthly_trends_by_provider.csv")
 
 # 4. Theme average sentiment score by provider
-theme_sentiment = df.groupby(['provider','theme'])['sentiment_score'].mean().reset_index(name='avg_sentiment_score')
+theme_sentiment = (
+    df.groupby(['provider', 'theme'])
+      .agg(
+          avg_sentiment_score=('sentiment_score', 'mean'),
+          count=('sentiment_score', 'count')
+      )
+      .reset_index()
+)
 theme_sentiment.to_csv(OUTPUT_DIR / "theme_avg_sentiment_by_provider.csv", index=False)
 print("Saved: theme_avg_sentiment_by_provider.csv")
 
@@ -72,3 +86,51 @@ provider_theme_corr = (
 )
 provider_theme_corr.to_csv(OUTPUT_DIR / "rating_vs_sentiment_corr_by_provider_theme.csv", index=False)
 print("Saved: rating_vs_sentiment_corr_by_provider_theme.csv")
+
+# 8. Aaverage rating by provider
+avg_rating_by_provider = (
+    df.groupby(['provider'])
+      .agg(
+          avg_rating=('rating', 'mean'),
+          count=('rating', 'count')
+      )
+      .reset_index()
+)
+avg_rating_by_provider.to_csv(OUTPUT_DIR / "avg_rating_by_provider.csv", index=False)
+print("Saved: avg_rating_by_provider.csv")
+
+# 9. Aaverage rating by theme
+avg_rating_by_theme = (
+    df.groupby(['theme'])
+      .agg(
+          avg_rating=('rating', 'mean'),
+          count=('rating', 'count')
+      )
+      .reset_index()
+)
+avg_rating_by_theme.to_csv(OUTPUT_DIR / "avg_rating_by_theme.csv", index=False)
+print("Saved: avg_rating_by_theme.csv")
+
+# 10. Aaverage sentiment by provider
+avg_sentiment_by_provider = (
+    df.groupby(['provider'])
+      .agg(
+          avg_sentiment_score=('sentiment_score', 'mean'),
+          count=('sentiment_score', 'count')
+      )
+      .reset_index()
+)
+avg_sentiment_by_provider.to_csv(OUTPUT_DIR / "avg_sentiment_by_provider.csv", index=False)
+print("Saved: avg_sentiment_by_provider.csv")
+
+# 11. Aaverage sentiment by theme
+avg_sentiment_by_theme = (
+    df.groupby(['theme'])
+      .agg(
+          avg_sentiment_score=('sentiment_score', 'mean'),
+          count=('sentiment_score', 'count')
+      )
+      .reset_index()
+)
+avg_sentiment_by_theme.to_csv(OUTPUT_DIR / "avg_sentiment_by_theme.csv", index=False)
+print("Saved: avg_sentiment_by_theme.csv")
