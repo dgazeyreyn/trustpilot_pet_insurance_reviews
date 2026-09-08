@@ -18,6 +18,7 @@
     --clay: #9C4A32;
     --clay-soft: #F1DFD6;
     --gold: #B4862F;
+    --gold-soft: #F3E9D2;
     --white: #FAF9F5;
   }
 
@@ -288,6 +289,17 @@
   }
 
   .card-tier { font-size: 0.85rem; color: var(--ink-soft); }
+
+  .limited-data-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--gold);
+    background: var(--gold-soft);
+    padding: 3px 8px;
+    border-radius: 3px;
+    margin-bottom: 10px;
+  }
   .card-summary-short { font-size: 0.92rem; color: var(--ink); margin-bottom: 12px; }
 
   .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
@@ -396,6 +408,17 @@
   }
   .provider-head .p-basis { font-size: 0.76rem; color: var(--ink-soft); margin-top: 2px; }
 
+  .provider-head .limited-data-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--gold);
+    background: var(--gold-soft);
+    padding: 2px 7px;
+    border-radius: 3px;
+    margin-top: 6px;
+  }
+
   .group-row td {
     padding: 22px 14px 6px;
     font-size: 0.78rem;
@@ -445,7 +468,7 @@
 <header class="masthead">
   <div class="masthead-top">
     <div class="wordmark">Clear<span>claim</span></div>
-    <div class="masthead-meta">Based on 28,243 Trustpilot reviews across 10 providers, August 2025–August 2026</div>
+    <div class="masthead-meta">Based on 28,615 Trustpilot reviews across 12 providers, August 2025–August 2026</div>
   </div>
   <div class="tagline">Honest pet insurance reviews, backed by real customer data — not marketing copy.</div>
 </header>
@@ -484,7 +507,7 @@
       <button class="cta-link" onclick="goToScorecard('healthypaws')">See Healthy Paws' full scorecard</button>
     </div>
 
-    <div class="finding" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
+    <div class="finding">
       <div class="finding-index">02</div>
       <div class="finding-headline">Not all denials are created equal</div>
       <div class="finding-body">Some providers get denial-related complaints often, but customers don't rate the experience unusually badly when it happens — suggesting the issue is more "this comes up" than "this is handled poorly." Others are the reverse: rare, but brutal when it happens.</div>
@@ -505,6 +528,17 @@
         </div>
       </div>
       <button class="cta-link" onclick="goToCompare(['embrace','spot'])">Compare denial patterns across providers</button>
+    </div>
+
+    <div class="finding" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
+      <div class="finding-index">03</div>
+      <div class="finding-headline">Consistency across the board</div>
+      <div class="finding-body">Most providers show a mix of real strengths and real weaknesses. Pumpkin is the exception in our data — the highest overall score, with claims processing and reimbursement both rated notably better than peers, and no flagged risk areas at all.</div>
+      <div class="pull-quote tone-moss">
+        <p>"Pumpkin approved my claim within 20 minutes of me submitting it."</p>
+      </div>
+      <div class="quote-attribution">Pumpkin customer &middot; Claims Filing Process</div>
+      <button class="cta-link" onclick="goToScorecard('pumpkin')">See Pumpkin's full scorecard</button>
     </div>
   </div>
 </section>
@@ -535,6 +569,8 @@
 
 <script>
 /* ============ SCORECARD DATA + RENDER ============ */
+const LIMITED_DATA_THRESHOLD = 500;
+
 const SCORECARD_DATA = [
   { key:"pumpkin", name:"Pumpkin", score:4.63, tier:"Excellent", reviews:1791, logo:null,
     summary_short:"Highest overall score in our analysis — strong marks across claims and reimbursement, no flagged risks.",
@@ -653,6 +689,9 @@ function renderScorecardGrid() {
       return `<div class="flag-detail ${cssKey}">${label}<span class="flag-quote">"${f.quote}"</span></div>`;
     }).join("");
 
+    const limitedDataBadge = p.reviews < LIMITED_DATA_THRESHOLD
+      ? `<div class="limited-data-badge">Limited Data</div>` : "";
+
     card.innerHTML = `
       <div class="card-rank">#${i + 1}</div>
       ${logoHtml}
@@ -661,6 +700,7 @@ function renderScorecardGrid() {
         <span class="card-score">${p.score.toFixed(2)}</span>
         <span class="card-tier">${p.tier}</span>
       </div>
+      ${limitedDataBadge}
       <div class="card-summary-short">${p.summary_short}</div>
       <div class="chip-row">${chipsShort}</div>
       <div class="expand-hint">See full breakdown →</div>
@@ -825,11 +865,14 @@ function renderLedger() {
     const p = PROVIDER_META[key];
     const th = document.createElement("th");
     th.className = "provider-head";
+    const limitedDataBadge = p.reviews < LIMITED_DATA_THRESHOLD
+      ? `<div class="limited-data-badge">Limited Data</div>` : "";
     th.innerHTML = `
       <div class="p-name">${p.name}</div>
       <div class="p-tier">${p.tier}</div>
       <div class="p-score">${p.score.toFixed(2)}</div>
       <div class="p-basis">${p.reviews.toLocaleString()} reviews on file</div>
+      ${limitedDataBadge}
     `;
     headRow.appendChild(th);
   });
