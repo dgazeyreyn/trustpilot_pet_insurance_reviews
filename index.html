@@ -18,6 +18,7 @@
     --clay: #9C4A32;
     --clay-soft: #F1DFD6;
     --gold: #B4862F;
+    --gold-text: #816021;
     --gold-soft: #F3E9D2;
     --white: #FAF9F5;
   }
@@ -294,7 +295,7 @@
     display: inline-block;
     font-size: 0.72rem;
     font-weight: 600;
-    color: var(--gold);
+    color: var(--gold-text);
     background: var(--gold-soft);
     padding: 3px 8px;
     border-radius: 3px;
@@ -308,7 +309,7 @@
   .chip.red { background: var(--clay-soft); color: var(--clay); }
   .chip.green { background: var(--moss-soft); color: var(--moss); }
 
-  .expand-hint { font-size: 0.78rem; color: var(--gold); margin-top: 10px; font-weight: 500; }
+  .expand-hint { font-size: 0.78rem; color: var(--gold-text); margin-top: 10px; font-weight: 500; }
 
   .card-detail { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--paper-line); display: none; }
   .card.expanded .card-detail { display: block; }
@@ -365,7 +366,7 @@
   .provider-toggle:hover { background: rgba(35,48,58,0.06); }
   .provider-toggle.selected { background: var(--ink); color: var(--white); }
   .provider-toggle:disabled:not(.selected) { opacity: 0.35; cursor: not-allowed; }
-  .provider-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .provider-toggle:focus-visible { outline: 2px solid var(--gold-text); outline-offset: 2px; }
 
   .empty-state {
     font-family: 'Fraunces', serif;
@@ -412,7 +413,7 @@
     display: inline-block;
     font-size: 0.7rem;
     font-weight: 600;
-    color: var(--gold);
+    color: var(--gold-text);
     background: var(--gold-soft);
     padding: 2px 7px;
     border-radius: 3px;
@@ -423,7 +424,7 @@
     padding: 22px 14px 6px;
     font-size: 0.78rem;
     letter-spacing: 0.02em;
-    color: var(--gold);
+    color: var(--gold-text);
     font-weight: 600;
     border-bottom: 1px solid var(--paper-line);
   }
@@ -563,7 +564,7 @@
     <div id="ledger-area"></div>
   </div>
   <footer class="note">
-    Themes are drawn from customer review text, not provider marketing. A flag means a provider's pattern for that theme is measurably different from the average across all providers — not a subjective rating. "Insufficient data" means fewer than 20 qualifying reviews were available for that theme.
+    Themes are drawn from customer review text, not provider marketing. A flag means a provider's pattern for that theme is measurably different from the average across all providers — not a subjective rating. "Insufficient data" means fewer than 20 qualifying reviews were available for that theme. Sentiment scoring reliably tracks star ratings across most themes, with the notable exception of price-increase and claim-denial narratives, where we rely on rating rather than sentiment.
   </footer>
 </section>
 
@@ -647,7 +648,7 @@ const SCORECARD_DATA = [
     ]},
   { key:"aspca", name:"ASPCA", score:3.06, tier:"Fair", reviews:394, logo:null,
     summary_short:"Lowest overall score in our analysis, with recurring frustration around claims handling and policy administration.",
-    summary_full:"aspca has the lowest overall score of any provider we analyzed, driven by two consistent complaint patterns: general claims frustration and difficulty with policy administration, particularly around cancellations and denials. Worth noting: with a smaller review base than most providers on this list, individual experiences carry more weight in these numbers.",
+    summary_full:"ASPCA has the lowest overall score of any provider we analyzed, driven by two consistent complaint patterns: general claims frustration and difficulty with policy administration, particularly around cancellations and denials. Worth noting: with a smaller review base than most providers on this list, individual experiences carry more weight in these numbers.",
     flags:[
       {type:"red",signal:"severity",theme:"General/Mixed Claims Narrative",quote:"They will find every excuse to not pay you... enroll at your own risk."},
       {type:"red",signal:"severity",theme:"Policy Administration & Billing",quote:"There's no option on the website to cancel your policy... you're stuck calling them."}
