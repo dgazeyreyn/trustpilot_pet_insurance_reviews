@@ -1,5 +1,11 @@
 # Trustpilot Pet Insurance Reviews
 
+## Preview
+
+[![clear_claim_website](./assets/preview-screenshot.png)](https://dgazeyreyn.github.io/trustpilot_pet_insurance_reviews/)
+_This preview is automatically updated via GitHub Actions._
+
+
 ## Project Overview
 
 This project builds an end-to-end analytics pipeline for collecting, processing, and analyzing Trustpilot reviews for U.S. pet insurance providers. The goal is to surface meaningful, data-driven insights that help consumers understand how providers differ across key dimensions such as claims processing, customer service, reimbursement experience, and overall satisfaction.
