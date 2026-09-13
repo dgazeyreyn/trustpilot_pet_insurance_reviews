@@ -68,7 +68,7 @@ other_insurance_phrases = [
     "umbrella policy", "umbrella insurance", "condo insurance",
     "landlord insurance", "flood insurance", "business insurance",
     "commercial insurance", "disability insurance", "identity theft protection",
-    "travel insurance", "house insurance"
+    "travel insurance", "house insurance",
     # Claim-context terms that strongly imply a non-pet claim
     "totaled my car", "car accident claim", "house fire", "burglary",
     "break-in", "broke into", "stole my", "roof damage", "water damage claim",
