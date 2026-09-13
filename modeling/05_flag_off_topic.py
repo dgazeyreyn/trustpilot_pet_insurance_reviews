@@ -55,70 +55,6 @@ df_filtered = merged[merged['provider'].isin(keep_providers)].reset_index(drop=T
 
 # Basic hygiene
 df_filtered = df_filtered.dropna(subset=["text"])
-texts = df_filtered["text"].astype(str).tolist()
-
-print(f"Loaded {len(texts):,} reviews")
-
-# ------------------------------------
-# Build provider name list
-# ------------------------------------
-
-provider_phrases = [
-    'aspca',
-    'embrace',
-    'fetch',
-    'figo',
-    'healthy paws', 'healthypaws',
-    'met life', 'metlife',
-    'nationwide',
-    'pets best', 'petsbest',
-    'prudent',
-    'pumpkin',
-    'spot',
-    'trupanion'
-]
-
-# Sort longest-first so multi-word phrases are tried before any shorter overlaps
-sorted_phrases = sorted(provider_phrases, key=len, reverse=True)
-
-# One compiled regex, word-boundary-safe, case-insensitive
-provider_pattern = re.compile(
-    r'\b(?:' + '|'.join(re.escape(p) for p in sorted_phrases) + r')\b',
-    flags=re.IGNORECASE
-)
-
-# ------------------------------------
-# Build species and affect list
-# ------------------------------------
-
-species_and_affect_terms = [
-    'dog', 'dogs', 'cat', 'cats', 'kitten', 'kittens', 'kitty', 'feline',
-    'fur baby', 'fur babies', 'furbaby', 'furbabies', 'fur-baby',
-]
-
-sorted_terms = sorted(species_and_affect_terms, key=len, reverse=True)
-species_affect_pattern = re.compile(
-    r'\b(?:' + '|'.join(re.escape(t) for t in sorted_terms) + r')\b',
-    flags=re.IGNORECASE
-)
-
-# -----------------
-# Clean review text
-# -----------------
-
-def clean_text(text: str) -> str:
-    if not isinstance(text, str):
-        return ""
-
-    text = contractions.fix(text)
-    text = text.lower()
-    text = provider_pattern.sub(" ", text)   # single-pass phrase removal
-    text = species_affect_pattern.sub(" ", text)   # NEW — strip from raw text, pre-embedding
-    text = re.sub(r"\s+", " ", text).strip() # collapse whitespace
-
-    return text
-
-df_filtered["clean_text"] = df_filtered["text"].apply(clean_text)
 
 # ----------------------
 # Flag off-topic reviews
@@ -150,7 +86,7 @@ def flag_off_topic(text: str) -> bool:
     return has_other_insurance and not has_pet_context
 
 # Apply the flagging function to the cleaned text
-df_filtered['off_topic_flag'] = df_filtered['clean_text'].astype(str).apply(flag_off_topic)
+df_filtered['off_topic_flag'] = df_filtered['text'].astype(str).apply(flag_off_topic)
 
 # Filter flagged reviews
 flagged = df_filtered[df_filtered['off_topic_flag'] == True]
