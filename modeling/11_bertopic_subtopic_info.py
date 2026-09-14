@@ -29,7 +29,7 @@ for topic_id in sorted(sub_topic_model.get_topics().keys()):
 
 sub_topic_df = pd.DataFrame(topic_records).sort_values('count', ascending=False).reset_index(drop=True)
 
-output_path = output_dir / "topic_summary.csv"
+output_path = output_dir / "sub_topic_summary.csv"
 sub_topic_df.to_csv(output_path, index=False)
 print(f"Saved {len(sub_topic_df)} topics → {output_path}")
 
