@@ -60,18 +60,26 @@ provider_pattern = re.compile(
     flags=re.IGNORECASE
 )
 
-# ------------------------------------
-# Build species and affect list
-# ------------------------------------
+# ----------------------------------------------
+# Build term lists for stripping from embeddings
+# ----------------------------------------------
 
-species_and_affect_terms = [
+species_terms = [
     'dog', 'dogs', 'cat', 'cats', 'kitten', 'kittens', 'kitty', 'feline',
+]
+
+affect_terms = [
     'fur baby', 'fur babies', 'furbaby', 'furbabies', 'fur-baby',
 ]
 
-sorted_terms = sorted(species_and_affect_terms, key=len, reverse=True)
-species_affect_pattern = re.compile(
-    r'\b(?:' + '|'.join(re.escape(t) for t in sorted_terms) + r')\b',
+generic_noise_terms = [
+    'coverage',
+]
+
+embedding_strip_terms = species_terms + affect_terms + generic_noise_terms
+sorted_strip_terms = sorted(embedding_strip_terms, key=len, reverse=True)
+embedding_strip_pattern = re.compile(
+    r'\b(?:' + '|'.join(re.escape(t) for t in sorted_strip_terms) + r')\b',
     flags=re.IGNORECASE
 )
 
@@ -86,7 +94,7 @@ def clean_text(text: str) -> str:
     text = contractions.fix(text)
     text = text.lower()
     text = provider_pattern.sub(" ", text)   # single-pass phrase removal
-    text = species_affect_pattern.sub(" ", text)   # NEW — strip from raw text, pre-embedding
+    text = embedding_strip_pattern.sub(" ", text)   # NEW — strip from raw text, pre-embedding
     text = re.sub(r"\s+", " ", text).strip() # collapse whitespace
 
     return text

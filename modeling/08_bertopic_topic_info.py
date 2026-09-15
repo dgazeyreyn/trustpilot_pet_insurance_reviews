@@ -40,8 +40,8 @@ df = pd.read_csv(input_file)
 
 # Generate a random sample of 10 reviews per topic for manual inspection
 sample_df = (
-    df.groupby('provider', group_keys=False)
-      .apply(lambda x: x.sample(n=min(len(x), 10), random_state=42))
+    df.groupby('topic', group_keys=False)
+      .apply(lambda x: x.sample(n=min(len(x), 15), random_state=42))
       .reset_index(drop=True)
 )
 output_path = output_dir / "sample_reviews_by_topic.csv"
