@@ -35,7 +35,7 @@ risk_themes = ['Pre-existing Condition/Denial', 'Premium Increases',
 quality_themes = ['Concierge/Named-Rep', 'Emotional Support/Compassionate Care',
                    'General Service Satisfaction', 'App Experience',
                    'Claims Filing Process', 'Reimbursement/Payment Experience',
-                   'Sign-up/Enrollment']
+                   'Sign-up/Enrollment', 'Website Experience & Pricing Perception']
 
 
 def build_flag_table(long_theme_df, n_threshold=20, index_threshold=200,
