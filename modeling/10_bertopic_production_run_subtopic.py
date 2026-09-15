@@ -22,7 +22,7 @@ df = pd.read_csv(input_file)
 # ----------------------------
 # Filter data
 # ----------------------------
-df_filtered = df[df['topic'] == 3].reset_index(drop=True)
+df_filtered = df[df['topic'] == 2].reset_index(drop=True)
 print(df_filtered.shape)
 
 # -----------------------------------------------------------
@@ -78,11 +78,18 @@ affect_terms = [
     'fur baby', 'fur babies', 'furbaby', 'furbabies', 'fur-baby',
 ]
 
-generic_noise_terms = [
-    'coverage',
-]
+# NOTE: 'coverage' is stripped here ONLY for Topic 3's sub-clustering.
+# Validated via seed-sweep A/B test: stripping it collapses Topic 2's
+# already-confirmed 7-topic structure into 1 dominant cluster (bad),
+# but is necessary here to dissolve the "Coverage" word-driven artifact
+# into its real constituent themes (see [date] refresh notes).
 
-embedding_strip_terms = species_terms + affect_terms + generic_noise_terms
+# generic_noise_terms = [
+#     'coverage',
+# ]
+
+embedding_strip_terms = species_terms + affect_terms
+# + generic_noise_terms
 sorted_strip_terms = sorted(embedding_strip_terms, key=len, reverse=True)
 embedding_strip_pattern = re.compile(
     r'\b(?:' + '|'.join(re.escape(t) for t in sorted_strip_terms) + r')\b',
@@ -164,7 +171,7 @@ sub_topics, sub_probs = sub_topic_model.fit_transform(documents)
 df_filtered["sub_topic"] = sub_topics
 
 # Save enriched dataset
-output_path = output_dir / "reviews_with_subtopics.csv"
+output_path = output_dir / "reviews_with_topic2_subtopics.csv"
 df_filtered.to_csv(output_path, index=False)
 
 print(f"Saved results to: {output_path}")
@@ -175,4 +182,4 @@ print(f"Saved results to: {output_path}")
 sub_topic_info = sub_topic_model.get_topic_info()
 print(sub_topic_info.head(15))
 
-sub_topic_model.save("bertopic_model_subtopics", serialization="safetensors")
+sub_topic_model.save("bertopic_model_topic2_subtopics", serialization="safetensors")
