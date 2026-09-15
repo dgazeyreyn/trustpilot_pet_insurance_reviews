@@ -23,9 +23,8 @@ pd.set_option('display.max_rows', 15)
 # Paths
 # ----------------------------
 BASE_DIR = Path(__file__).resolve().parents[1]  # adjust if running from project root
-# INPUT_REVIEWS = BASE_DIR / "data" / "modeling" / "reviews_for_modeling.csv"
 INPUT_TOPICS  = BASE_DIR / "data" / "modeling" / "reviews_with_topics.csv"
-INPUT_SUBTOPICS  = BASE_DIR / "data" / "modeling" / "reviews_with_topic1_subtopics.csv"
+INPUT_SUBTOPICS  = BASE_DIR / "data" / "modeling" / "reviews_with_subtopics.csv"
 OUTPUT_DIR    = BASE_DIR / "data" / "modeling"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -43,45 +42,49 @@ subtopics_indexed = subtopics.set_index('review_id')
 result = topics_indexed.join(subtopics_indexed[['topic']], rsuffix='_df2')
 
 conditions = [
-    (result['topic'] == 1) & (result['topic_df2'] == 0),
-    (result['topic'] == 2) & (result['topic_df2'].isna()),
-    (result['topic'] == 4) & (result['topic_df2'].isna()),
-    (result['topic'] == 6) & (result['topic_df2'].isna()),
-    (result['topic'] == 1) & (result['topic_df2'] == 1),
+    (result['topic'] == 1) & (result['topic_df2'].isna()),
+    (result['topic'] == 2) & (result['topic_df2'] == 0),
+    (result['topic'] == 7) & (result['topic_df2'].isna()),
+    (result['topic'] == 2) & (result['topic_df2'] == 1),
     (result['topic'] == 8) & (result['topic_df2'].isna()),
-    (result['topic'] == 1) & (result['topic_df2'] == -1),
-    (result['topic'] == 3) & (result['topic_df2'].isna()),
-    (result['topic'] == 1) & (result['topic_df2'] == 6),
-    (result['topic'] == 1) & (result['topic_df2'] == 5),
-    (result['topic'] == 1) & (result['topic_df2'].isin([2, 4])),
-    (result['topic'] == 5) & (result['topic_df2'].isna()),
     (result['topic'] == -1) & (result['topic_df2'].isna()),
+    (result['topic'] == 2) & (result['topic_df2'] == -1),
+    (result['topic'] == 3) & (result['topic_df2'] == -1),
+    (result['topic'] == 2) & (result['topic_df2'] == 4),
+    (result['topic'] == 2) & (result['topic_df2'] == 5),
+    (result['topic'] == 3) & (result['topic_df2'] == 1),
+    (result['topic'] == 2) & (result['topic_df2'] == 2),
+    (result['topic'] == 2) & (result['topic_df2'] == 3),
+    (result['topic'] == 3) & (result['topic_df2'] == 0),
+    (result['topic'] == 4) & (result['topic_df2'].isna()),
+    (result['topic'] == 5) & (result['topic_df2'].isna()),
     (result['topic'] == 9) & (result['topic_df2'].isna()),
-    (result['topic'] == 10) & (result['topic_df2'].isna()),
     (result['topic'] == 0) & (result['topic_df2'].isna()),
-    (result['topic'] == 1) & (result['topic_df2'] == 3),
-    (result['topic'] == 7) & (result['topic_df2'].isna())
+    (result['topic'] == 6) & (result['topic_df2'].isna()),
+    (result['topic'] == 10) & (result['topic_df2'].isna())
 ]
 
 categories = [
     'App Experience',
     'App Experience',
-    'Claims Filing Process',
     'Concierge/Named-Rep',
     'Emotional Support/Compassionate Care',
     'General Service Satisfaction',
     'General/Mixed Claims Narrative',
-    'Policy Administration & Billing',
+    'General/Mixed Claims Narrative',
+    'General/Mixed Claims Narrative',
     'Pre-existing Condition/Denial',
+    'Premium Increases',
     'Premium Increases',
     'Reimbursement/Payment Experience',
     'Reimbursement/Payment Experience',
-    'Short/Low-Content',
-    'Short/Low-Content',
+    'Reimbursement/Payment Experience',
+    'Reimbursement/Payment Experience',
+    'Reimbursement/Payment Experience',
     'Short/Low-Content',
     'Sign-up/Enrollment',
     'Sign-up/Enrollment',
-    'Sign-up/Enrollment'
+    'Website Experience & Pricing Perception'
 ]
 
 result['theme'] = np.select(
