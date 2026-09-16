@@ -24,15 +24,13 @@ for csv_path in files:
     print(f"\nProcessing: {csv_path.name}")
 
     df = pd.read_csv(csv_path)
-    
+
     # Deduplicate
     df.drop_duplicates(subset=["review_id"], inplace=True)
 
     # Convert to consistent datetime format
     df["published_date"] = pd.to_datetime(
-        df["published_date"],
-        errors="coerce",
-        utc=True
+        df["published_date"], errors="coerce", utc=True
     )
 
     # ----------------------------
@@ -48,20 +46,12 @@ merged = pd.concat(all_dfs, ignore_index=True)
 # ----------------------------
 # Sanity checks
 # ----------------------------
-required_cols = {
-    "review_id",
-    "text",
-    "rating",
-    "published_date",
-    "provider"
-}
+required_cols = {"review_id", "text", "rating", "published_date", "provider"}
 
 missing = required_cols - set(merged.columns)
 
 if missing:
-    raise ValueError(
-        f"Merged dataframe missing columns: {missing}"
-    )
+    raise ValueError(f"Merged dataframe missing columns: {missing}")
 
 print(f"\nMerged {len(all_dfs)} files with {len(merged)} reviews")
 

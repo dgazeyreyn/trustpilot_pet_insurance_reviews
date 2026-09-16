@@ -13,8 +13,8 @@ DATA_DIR.mkdir(exist_ok=True)
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                  "AppleWebKit/537.36 (KHTML, like Gecko) "
-                  "Chrome/124.0.0.0 Safari/537.36",
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36",
     "Accept-Language": "en-US,en;q=0.9",
     "Accept": "text/html,application/json",
     "Connection": "keep-alive",
@@ -28,11 +28,13 @@ BASE_DELAY = (2, 5)  # randomized delay range
 session = requests.Session()
 session.headers.update(HEADERS)
 
+
 # ---------------------------
 # HELPERS
 # ---------------------------
 def parse_iso_utc(ts: str) -> datetime:
     return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
 
 def fetch_with_retries(url, max_retries=3):
     for attempt in range(max_retries):
@@ -57,6 +59,7 @@ def fetch_with_retries(url, max_retries=3):
 
     return None
 
+
 def get_reviews_from_page(url: str) -> list:
     response = fetch_with_retries(url)
 
@@ -75,6 +78,7 @@ def get_reviews_from_page(url: str) -> list:
         return json_object["props"]["pageProps"]["reviews"]
     except KeyError:
         return []
+
 
 # ---------------------------
 # SCRAPE ONE PROVIDER
@@ -106,19 +110,21 @@ def scrape_provider(provider_key, provider_cfg):
                 stop_scraping = True
                 break
 
-            rows.append({
-                "provider": provider_key,
-                "review_id": r["id"],
-                "rating": r["rating"],
-                "title": r["title"],
-                "text": r["text"],
-                "likes": r["likes"],
-                "filtered": r["filtered"],
-                "pending": r["isPending"],
-                "experienced_date": r["dates"]["experiencedDate"],
-                "published_date": published_raw,
-                "source_url": page_url,
-            })
+            rows.append(
+                {
+                    "provider": provider_key,
+                    "review_id": r["id"],
+                    "rating": r["rating"],
+                    "title": r["title"],
+                    "text": r["text"],
+                    "likes": r["likes"],
+                    "filtered": r["filtered"],
+                    "pending": r["isPending"],
+                    "experienced_date": r["dates"]["experiencedDate"],
+                    "published_date": published_raw,
+                    "source_url": page_url,
+                }
+            )
 
         if stop_scraping:
             print("  Reached previously collected reviews.")
@@ -150,6 +156,7 @@ def scrape_provider(provider_key, provider_cfg):
     print(f"  Saved {len(df)} new reviews → {output_path}")
     return df
 
+
 # ---------------------------
 # MAIN
 # ---------------------------
@@ -162,6 +169,7 @@ def main():
             scrape_provider(provider_key, provider_cfg)
         except Exception as e:
             print(f"✖ Error scraping {provider_key}: {e}")
+
 
 if __name__ == "__main__":
     main()

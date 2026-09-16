@@ -8,7 +8,6 @@ import pandas as pd
 import yaml
 from playwright.sync_api import sync_playwright
 
-
 # ============================================================
 # CONFIGURATION
 # ============================================================
@@ -31,13 +30,12 @@ MAX_PAGES_PER_PROVIDER = 100
 # HELPERS
 # ============================================================
 
+
 def parse_iso_utc(ts: str):
     """
     Convert ISO timestamp to timezone-aware datetime.
     """
-    return datetime.fromisoformat(
-        ts.replace("Z", "+00:00")
-    )
+    return datetime.fromisoformat(ts.replace("Z", "+00:00"))
 
 
 def extract_page_number(url: str) -> int:
@@ -71,15 +69,13 @@ def get_incremental_path(provider_key: str) -> Path:
     Return the provider's incremental CSV path.
     """
 
-    return (
-        DATA_DIR
-        / f"{provider_key}_reviews_incremental.csv"
-    )
+    return DATA_DIR / f"{provider_key}_reviews_incremental.csv"
 
 
 # ============================================================
 # LOAD EXISTING REVIEWS
 # ============================================================
+
 
 def load_existing_reviews(provider_key: str):
     """
@@ -97,9 +93,7 @@ def load_existing_reviews(provider_key: str):
         list of previously saved review dictionaries
     """
 
-    output_path = get_incremental_path(
-        provider_key
-    )
+    output_path = get_incremental_path(provider_key)
 
     if not output_path.exists():
 
@@ -113,46 +107,33 @@ def load_existing_reviews(provider_key: str):
 
     try:
 
-        df = pd.read_csv(
-            output_path
-        )
+        df = pd.read_csv(output_path)
 
     except Exception as e:
 
-        print(
-            f"⚠️ Could not read existing CSV: {e}"
-        )
+        print(f"⚠️ Could not read existing CSV: {e}")
 
-        print(
-            "Starting with an empty accumulated review set."
-        )
+        print("Starting with an empty accumulated review set.")
 
         return []
 
     if df.empty:
 
-        print(
-            "Existing CSV is empty."
-        )
+        print("Existing CSV is empty.")
 
-        print(
-            "Starting from Page 1."
-        )
+        print("Starting from Page 1.")
 
         return []
 
-    print(
-        f"✓ Loaded {len(df):,} previously saved reviews."
-    )
+    print(f"✓ Loaded {len(df):,} previously saved reviews.")
 
-    return df.to_dict(
-        "records"
-    )
+    return df.to_dict("records")
 
 
 # ============================================================
 # EXTRACT REVIEWS
 # ============================================================
+
 
 def extract_reviews(page):
     """
@@ -163,13 +144,9 @@ def extract_reviews(page):
     working scraper.
     """
 
-    print(
-        "Looking for NEXT_DATA..."
-    )
+    print("Looking for NEXT_DATA...")
 
-    next_data = page.locator(
-        "script#__NEXT_DATA__"
-    )
+    next_data = page.locator("script#__NEXT_DATA__")
 
     try:
 
@@ -180,21 +157,15 @@ def extract_reviews(page):
 
     except Exception:
 
-        print(
-            "⚠️ NEXT_DATA not found."
-        )
+        print("⚠️ NEXT_DATA not found.")
 
         try:
-            print(
-                f"Page title: {page.title()}"
-            )
+            print(f"Page title: {page.title()}")
         except Exception:
             pass
 
         try:
-            print(
-                f"Current URL: {page.url}"
-            )
+            print(f"Current URL: {page.url}")
         except Exception:
             pass
 
@@ -206,41 +177,25 @@ def extract_reviews(page):
 
     except Exception as e:
 
-        print(
-            f"⚠️ Could not read NEXT_DATA: {e}"
-        )
+        print(f"⚠️ Could not read NEXT_DATA: {e}")
 
         return []
 
     if not text:
 
-        print(
-            "⚠️ NEXT_DATA element is empty."
-        )
+        print("⚠️ NEXT_DATA element is empty.")
 
         return []
 
-    print(
-        f"✓ NEXT_DATA found: {len(text):,} characters"
-    )
+    print(f"✓ NEXT_DATA found: {len(text):,} characters")
 
     try:
 
         data = json.loads(text)
 
-        reviews = (
-            data[
-                "props"
-            ][
-                "pageProps"
-            ][
-                "reviews"
-            ]
-        )
+        reviews = data["props"]["pageProps"]["reviews"]
 
-        print(
-            f"✓ Reviews found: {len(reviews)}"
-        )
+        print(f"✓ Reviews found: {len(reviews)}")
 
         return reviews
 
@@ -250,9 +205,7 @@ def extract_reviews(page):
         TypeError,
     ) as e:
 
-        print(
-            f"⚠️ Could not parse NEXT_DATA: {e}"
-        )
+        print(f"⚠️ Could not parse NEXT_DATA: {e}")
 
         return []
 
@@ -260,6 +213,7 @@ def extract_reviews(page):
 # ============================================================
 # FIND NEXT PAGE CONTROL
 # ============================================================
+
 
 def find_next_page_control(page):
     """
@@ -273,9 +227,7 @@ def find_next_page_control(page):
 
     count = matches.count()
 
-    print(
-        f"Elements containing 'Next page': {count}"
-    )
+    print(f"Elements containing 'Next page': {count}")
 
     if count == 0:
         return None
@@ -299,6 +251,7 @@ def find_next_page_control(page):
 # SAVE REVIEWS
 # ============================================================
 
+
 def save_reviews(
     provider_key,
     rows,
@@ -312,15 +265,11 @@ def save_reviews(
 
     if not rows:
 
-        print(
-            "No reviews to save."
-        )
+        print("No reviews to save.")
 
         return
 
-    df = pd.DataFrame(
-        rows
-    )
+    df = pd.DataFrame(rows)
 
     if "review_id" in df.columns:
 
@@ -329,24 +278,20 @@ def save_reviews(
             inplace=True,
         )
 
-    output_path = get_incremental_path(
-        provider_key
-    )
+    output_path = get_incremental_path(provider_key)
 
     df.to_csv(
         output_path,
         index=False,
     )
 
-    print(
-        f"💾 Saved {len(df):,} accumulated reviews → "
-        f"{output_path}"
-    )
+    print(f"💾 Saved {len(df):,} accumulated reviews → " f"{output_path}")
 
 
 # ============================================================
 # NAVIGATE TO PAGE 1
 # ============================================================
+
 
 def navigate_to_page_one(
     page,
@@ -363,19 +308,13 @@ def navigate_to_page_one(
 
     print("\n" + "=" * 70)
 
-    print(
-        "STARTING INCREMENTAL COLLECTION FROM PAGE 1"
-    )
+    print("STARTING INCREMENTAL COLLECTION FROM PAGE 1")
 
     print("=" * 70)
 
-    print(
-        "\nNavigating to provider page:"
-    )
+    print("\nNavigating to provider page:")
 
-    print(
-        base_url
-    )
+    print(base_url)
 
     try:
 
@@ -387,51 +326,32 @@ def navigate_to_page_one(
 
     except Exception as e:
 
-        print(
-            f"⚠️ Navigation error: {e}"
-        )
+        print(f"⚠️ Navigation error: {e}")
 
         return False
 
-    print(
-        "\nWaiting for Trustpilot page..."
-    )
+    print("\nWaiting for Trustpilot page...")
 
-    time.sleep(
-        WAIT_AFTER_REFRESH
-    )
+    time.sleep(WAIT_AFTER_REFRESH)
 
-    print(
-        f"Current URL: {page.url}"
-    )
+    print(f"Current URL: {page.url}")
 
     try:
 
-        print(
-            f"Page title: {page.title()}"
-        )
+        print(f"Page title: {page.title()}")
 
     except Exception:
         pass
 
-    actual_page = extract_page_number(
-        page.url
-    )
+    actual_page = extract_page_number(page.url)
 
-    print(
-        f"Detected page: {actual_page}"
-    )
+    print(f"Detected page: {actual_page}")
 
     if actual_page != 1:
 
-        print(
-            "\n⚠️ Trustpilot did not load Page 1."
-        )
+        print("\n⚠️ Trustpilot did not load Page 1.")
 
-        print(
-            "Stopping rather than risking "
-            "incorrect incremental collection."
-        )
+        print("Stopping rather than risking " "incorrect incremental collection.")
 
         return False
 
@@ -442,6 +362,7 @@ def navigate_to_page_one(
 # SCRAPE ONE PROVIDER
 # ============================================================
 
+
 def scrape_provider(
     page,
     provider_key,
@@ -450,24 +371,15 @@ def scrape_provider(
 
     base_url = provider_cfg["url"]
 
-    last_collected = parse_iso_utc(
-        provider_cfg["last_collected"]
-    )
+    last_collected = parse_iso_utc(provider_cfg["last_collected"])
 
     print("\n" + "=" * 70)
 
-    print(
-        f"Provider: {provider_cfg['name']}"
-    )
+    print(f"Provider: {provider_cfg['name']}")
 
-    print(
-        f"Base URL: {base_url}"
-    )
+    print(f"Base URL: {base_url}")
 
-    print(
-        f"Last collected: "
-        f"{last_collected.isoformat()}"
-    )
+    print(f"Last collected: " f"{last_collected.isoformat()}")
 
     print("=" * 70)
 
@@ -479,29 +391,17 @@ def scrape_provider(
     # which page we should start on.
     # --------------------------------------------------------
 
-    rows = load_existing_reviews(
-        provider_key
-    )
+    rows = load_existing_reviews(provider_key)
 
-    print(
-        "\nIncremental collection strategy:"
-    )
+    print("\nIncremental collection strategy:")
 
-    print(
-        "  • Always start at Page 1"
-    )
+    print("  • Always start at Page 1")
 
-    print(
-        "  • Collect reviews newer than last_collected"
-    )
+    print("  • Collect reviews newer than last_collected")
 
-    print(
-        "  • Stop when last_collected is reached"
-    )
+    print("  • Stop when last_collected is reached")
 
-    print(
-        "  • Deduplicate by review_id"
-    )
+    print("  • Deduplicate by review_id")
 
     # --------------------------------------------------------
     # Navigate to Page 1
@@ -520,32 +420,19 @@ def scrape_provider(
     # MAIN PAGINATION LOOP
     # ========================================================
 
-    while (
-        page_number
-        <= MAX_PAGES_PER_PROVIDER
-    ):
+    while page_number <= MAX_PAGES_PER_PROVIDER:
 
-        print(
-            "\n" + "-" * 60
-        )
+        print("\n" + "-" * 60)
 
-        print(
-            f"## PAGE {page_number}"
-        )
+        print(f"## PAGE {page_number}")
 
-        print(
-            "-" * 60
-        )
+        print("-" * 60)
 
-        print(
-            f"Current URL: {page.url}"
-        )
+        print(f"Current URL: {page.url}")
 
         try:
 
-            print(
-                f"Page title: {page.title()}"
-            )
+            print(f"Page title: {page.title()}")
 
         except Exception:
             pass
@@ -554,28 +441,19 @@ def scrape_provider(
         # Extract current page
         # ----------------------------------------------------
 
-        reviews = extract_reviews(
-            page
-        )
+        reviews = extract_reviews(page)
 
         if not reviews:
 
-            print(
-                "⚠️ No reviews returned."
-            )
+            print("⚠️ No reviews returned.")
 
-            print(
-                "Stopping provider."
-            )
+            print("Stopping provider.")
 
             break
 
         first_review_id = reviews[0]["id"]
 
-        print(
-            f"First review ID: "
-            f"{first_review_id}"
-        )
+        print(f"First review ID: " f"{first_review_id}")
 
         # ----------------------------------------------------
         # Process reviews
@@ -586,11 +464,7 @@ def scrape_provider(
         reached_last_collected = False
 
         # Keep track of IDs already saved.
-        existing_ids = {
-            row["review_id"]
-            for row in rows
-            if "review_id" in row
-        }
+        existing_ids = {row["review_id"] for row in rows if "review_id" in row}
 
         for review in reviews:
 
@@ -600,13 +474,7 @@ def scrape_provider(
 
             try:
 
-                published_raw = (
-                    review[
-                        "dates"
-                    ][
-                        "publishedDate"
-                    ]
-                )
+                published_raw = review["dates"]["publishedDate"]
 
             except (
                 KeyError,
@@ -623,19 +491,14 @@ def scrape_provider(
 
             try:
 
-                published_dt = parse_iso_utc(
-                    published_raw
-                )
+                published_dt = parse_iso_utc(published_raw)
 
             except (
                 ValueError,
                 TypeError,
             ) as e:
 
-                print(
-                    f"⚠️ Could not parse published "
-                    f"date '{published_raw}': {e}"
-                )
+                print(f"⚠️ Could not parse published " f"date '{published_raw}': {e}")
 
                 continue
 
@@ -654,19 +517,11 @@ def scrape_provider(
 
                 reached_last_collected = True
 
-                print(
-                    "\n✓ Reached last_collected cutoff."
-                )
+                print("\n✓ Reached last_collected cutoff.")
 
-                print(
-                    f"Review published: "
-                    f"{published_dt.isoformat()}"
-                )
+                print(f"Review published: " f"{published_dt.isoformat()}")
 
-                print(
-                    f"Last collected:   "
-                    f"{last_collected.isoformat()}"
-                )
+                print(f"Last collected:   " f"{last_collected.isoformat()}")
 
                 break
 
@@ -684,58 +539,27 @@ def scrape_provider(
             # Add new review
             # ------------------------------------------------
 
-            rows.append({
-
-                "provider":
-                    provider_key,
-
-                "review_id":
-                    review_id,
-
-                "rating":
-                    review["rating"],
-
-                "title":
-                    review["title"],
-
-                "text":
-                    review["text"],
-
-                "likes":
-                    review["likes"],
-
-                "filtered":
-                    review["filtered"],
-
-                "pending":
-                    review["isPending"],
-
-                "experienced_date":
-                    review[
-                        "dates"
-                    ][
-                        "experiencedDate"
-                    ],
-
-                "published_date":
-                    published_raw,
-
-                "source_url":
-                    page.url,
-
-            })
-
-            existing_ids.add(
-                review_id
+            rows.append(
+                {
+                    "provider": provider_key,
+                    "review_id": review_id,
+                    "rating": review["rating"],
+                    "title": review["title"],
+                    "text": review["text"],
+                    "likes": review["likes"],
+                    "filtered": review["filtered"],
+                    "pending": review["isPending"],
+                    "experienced_date": review["dates"]["experiencedDate"],
+                    "published_date": published_raw,
+                    "source_url": page.url,
+                }
             )
+
+            existing_ids.add(review_id)
 
             new_reviews_this_page += 1
 
-        print(
-            f"New reviews from page "
-            f"{page_number}: "
-            f"{new_reviews_this_page}"
-        )
+        print(f"New reviews from page " f"{page_number}: " f"{new_reviews_this_page}")
 
         # ----------------------------------------------------
         # Save after EVERY successfully processed page
@@ -752,14 +576,9 @@ def scrape_provider(
 
         if reached_last_collected:
 
-            print(
-                "\n✓ Reached previously "
-                "collected reviews."
-            )
+            print("\n✓ Reached previously " "collected reviews.")
 
-            print(
-                "✓ Incremental collection complete."
-            )
+            print("✓ Incremental collection complete.")
 
             break
 
@@ -767,77 +586,50 @@ def scrape_provider(
         # Find Next Page
         # ----------------------------------------------------
 
-        print(
-            "\nLooking for 'Next page' control..."
-        )
+        print("\nLooking for 'Next page' control...")
 
-        next_button = find_next_page_control(
-            page
-        )
+        next_button = find_next_page_control(page)
 
         if not next_button:
 
-            print(
-                "✓ No visible Next page control found."
-            )
+            print("✓ No visible Next page control found.")
 
-            print(
-                "✓ End of pagination."
-            )
+            print("✓ End of pagination.")
 
             break
 
-        print(
-            "✓ Next page control found."
-        )
+        print("✓ Next page control found.")
 
-        previous_first_review_id = (
-            first_review_id
-        )
+        previous_first_review_id = first_review_id
 
-        expected_page = (
-            page_number + 1
-        )
+        expected_page = page_number + 1
 
         # ----------------------------------------------------
         # Click Next Page
         # ----------------------------------------------------
 
-        print(
-            "\nClicking Next page..."
-        )
+        print("\nClicking Next page...")
 
         try:
 
-            next_button.click(
-                timeout=30_000
-            )
+            next_button.click(timeout=30_000)
 
         except Exception as e:
 
-            print(
-                f"⚠️ Could not click Next page: "
-                f"{e}"
-            )
+            print(f"⚠️ Could not click Next page: " f"{e}")
 
             break
 
-        print(
-            "✓ Click completed."
-        )
+        print("✓ Click completed.")
 
         print(
             f"Waiting {WAIT_AFTER_CLICK} seconds "
             "for Trustpilot's pagination state..."
         )
 
-        time.sleep(
-            WAIT_AFTER_CLICK
-        )
+        time.sleep(WAIT_AFTER_CLICK)
 
-        print(
-            f"URL after click: {page.url}"
-        )
+        print(f"URL after click: {page.url}")
 
         # ----------------------------------------------------
         # Refresh
@@ -848,9 +640,7 @@ def scrape_provider(
         # into __NEXT_DATA__.
         # ----------------------------------------------------
 
-        print(
-            "\nRefreshing page..."
-        )
+        print("\nRefreshing page...")
 
         try:
 
@@ -861,56 +651,33 @@ def scrape_provider(
 
         except Exception as e:
 
-            print(
-                f"⚠️ Page refresh error: {e}"
-            )
+            print(f"⚠️ Page refresh error: {e}")
 
             break
 
-        print(
-            "✓ Refresh completed."
-        )
+        print("✓ Refresh completed.")
 
-        print(
-            f"Waiting {WAIT_AFTER_REFRESH} seconds "
-            "for NEXT_DATA..."
-        )
+        print(f"Waiting {WAIT_AFTER_REFRESH} seconds " "for NEXT_DATA...")
 
-        time.sleep(
-            WAIT_AFTER_REFRESH
-        )
+        time.sleep(WAIT_AFTER_REFRESH)
 
-        print(
-            f"URL after refresh: {page.url}"
-        )
+        print(f"URL after refresh: {page.url}")
 
         # ----------------------------------------------------
         # Validate actual page number
         # ----------------------------------------------------
 
-        actual_page = extract_page_number(
-            page.url
-        )
+        actual_page = extract_page_number(page.url)
 
-        print(
-            f"Expected page: {expected_page}"
-        )
+        print(f"Expected page: {expected_page}")
 
-        print(
-            f"Actual page:   {actual_page}"
-        )
+        print(f"Actual page:   {actual_page}")
 
         if actual_page != expected_page:
 
-            print(
-                "\n⚠️ Pagination page-number "
-                "validation failed."
-            )
+            print("\n⚠️ Pagination page-number " "validation failed.")
 
-            print(
-                "Stopping rather than risking "
-                "duplicate or incorrect data."
-            )
+            print("Stopping rather than risking " "duplicate or incorrect data.")
 
             break
 
@@ -918,68 +685,38 @@ def scrape_provider(
         # Validate NEXT_DATA contains a different page
         # ----------------------------------------------------
 
-        print(
-            "\nValidating that the new page "
-            "contains different reviews..."
-        )
+        print("\nValidating that the new page " "contains different reviews...")
 
-        new_reviews = extract_reviews(
-            page
-        )
+        new_reviews = extract_reviews(page)
 
         if not new_reviews:
 
-            print(
-                "⚠️ Could not extract reviews "
-                "after pagination refresh."
-            )
+            print("⚠️ Could not extract reviews " "after pagination refresh.")
 
-            print(
-                "Stopping rather than risking "
-                "duplicate or incorrect data."
-            )
+            print("Stopping rather than risking " "duplicate or incorrect data.")
 
             break
 
-        new_first_review_id = (
-            new_reviews[0]["id"]
-        )
+        new_first_review_id = new_reviews[0]["id"]
 
-        print(
-            f"Previous first review ID: "
-            f"{previous_first_review_id}"
-        )
+        print(f"Previous first review ID: " f"{previous_first_review_id}")
 
-        print(
-            f"New first review ID:      "
-            f"{new_first_review_id}"
-        )
+        print(f"New first review ID:      " f"{new_first_review_id}")
 
-        if (
-            new_first_review_id
-            == previous_first_review_id
-        ):
+        if new_first_review_id == previous_first_review_id:
 
-            print(
-                "\n⚠️ Pagination validation failed."
-            )
+            print("\n⚠️ Pagination validation failed.")
 
             print(
                 "The refreshed page still appears "
                 "to contain the previous page's reviews."
             )
 
-            print(
-                "Stopping rather than risking "
-                "duplicate or incorrect data."
-            )
+            print("Stopping rather than risking " "duplicate or incorrect data.")
 
             break
 
-        print(
-            "✓ Pagination validated — "
-            "new reviews found."
-        )
+        print("✓ Pagination validated — " "new reviews found.")
 
         # ----------------------------------------------------
         # Move to next page
@@ -993,28 +730,15 @@ def scrape_provider(
     # FINAL SUMMARY
     # ========================================================
 
-    print(
-        "\n" + "=" * 70
-    )
+    print("\n" + "=" * 70)
 
-    print(
-        f"Provider complete: "
-        f"{provider_cfg['name']}"
-    )
+    print(f"Provider complete: " f"{provider_cfg['name']}")
 
-    print(
-        f"Last page reached: "
-        f"{page_number}"
-    )
+    print(f"Last page reached: " f"{page_number}")
 
-    print(
-        f"Total accumulated reviews: "
-        f"{len(rows):,}"
-    )
+    print(f"Total accumulated reviews: " f"{len(rows):,}")
 
-    print(
-        "=" * 70
-    )
+    print("=" * 70)
 
     return rows
 
@@ -1023,37 +747,28 @@ def scrape_provider(
 # MAIN
 # ============================================================
 
+
 def main():
 
-    print(
-        "Connecting to existing Chrome..."
-    )
+    print("Connecting to existing Chrome...")
 
     with sync_playwright() as p:
 
-        browser = p.chromium.connect_over_cdp(
-            CDP_URL
-        )
+        browser = p.chromium.connect_over_cdp(CDP_URL)
 
-        print(
-            "✓ Connected to Chrome"
-        )
+        print("✓ Connected to Chrome")
 
         contexts = browser.contexts
 
         if not contexts:
 
-            raise RuntimeError(
-                "No Chrome browser contexts found."
-            )
+            raise RuntimeError("No Chrome browser contexts found.")
 
         context = contexts[0]
 
         pages = context.pages
 
-        print(
-            f"Open pages: {len(pages)}"
-        )
+        print(f"Open pages: {len(pages)}")
 
         # ----------------------------------------------------
         # Find Trustpilot tab
@@ -1063,14 +778,9 @@ def main():
 
         for page in pages:
 
-            print(
-                f"Tab: {page.url}"
-            )
+            print(f"Tab: {page.url}")
 
-            if (
-                "trustpilot.com/review/"
-                in page.url
-            ):
+            if "trustpilot.com/review/" in page.url:
 
                 trustpilot_page = page
 
@@ -1078,19 +788,13 @@ def main():
 
         if not trustpilot_page:
 
-            raise RuntimeError(
-                "No Trustpilot review tab found."
-            )
+            raise RuntimeError("No Trustpilot review tab found.")
 
         page = trustpilot_page
 
-        print(
-            "\n✓ Using Trustpilot tab:"
-        )
+        print("\n✓ Using Trustpilot tab:")
 
-        print(
-            page.url
-        )
+        print(page.url)
 
         # ----------------------------------------------------
         # Load provider configuration
@@ -1101,9 +805,7 @@ def main():
             "r",
         ) as f:
 
-            providers = yaml.safe_load(
-                f
-            )
+            providers = yaml.safe_load(f)
 
         # ----------------------------------------------------
         # Process ONE provider for testing
@@ -1113,9 +815,7 @@ def main():
 
         provider_key = "trupanion"
 
-        provider_cfg = providers[
-            provider_key
-        ]
+        provider_cfg = providers[provider_key]
 
         try:
 
@@ -1127,10 +827,7 @@ def main():
 
         except Exception as e:
 
-            print(
-                f"\n✖ Error scraping "
-                f"{provider_key}: {e}"
-            )
+            print(f"\n✖ Error scraping " f"{provider_key}: {e}")
 
 
 if __name__ == "__main__":

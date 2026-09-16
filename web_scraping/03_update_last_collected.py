@@ -6,7 +6,9 @@ from datetime import datetime
 import pandas as pd
 
 # Define directory paths
-BASE_DIR = Path("/Users/davidreynolds/projects/trustpilot_pet_insurance_reviews/web_scraping")
+BASE_DIR = Path(
+    "/Users/davidreynolds/projects/trustpilot_pet_insurance_reviews/web_scraping"
+)
 incremental_dir = BASE_DIR / "incremental"
 curated_dir = BASE_DIR / "curated"
 providers_dir = BASE_DIR / "providers.yaml"
@@ -35,7 +37,9 @@ for provider_key in providers.keys():
     # ---------------------------
     if "published_date" in df_inc.columns:
         # Parse ISO strings to datetime and find the latest
-        df_inc["published_date_parsed"] = pd.to_datetime(df_inc["published_date"], utc=True, errors="coerce")
+        df_inc["published_date_parsed"] = pd.to_datetime(
+            df_inc["published_date"], utc=True, errors="coerce"
+        )
         latest_ts = df_inc["published_date_parsed"].max()
         if pd.notna(latest_ts):
             providers[provider_key]["last_collected"] = latest_ts.isoformat()
