@@ -26,6 +26,7 @@ long_theme_df = df.groupby(["provider", "theme"], as_index=False).agg(
     avg_sentiment_score=("sentiment_score", "mean"),
     reviews=("rating", "count"),
 )
+long_theme_df.to_csv(OUTPUT_DIR / "site_update_files" / "long_theme_df.csv", sep=",")
 
 # ----------------------------
 # Theme classification
@@ -143,7 +144,7 @@ def top_flags_by_provider(flags_df, n=2):
 flags_df = build_flag_table(
     long_theme_df, n_threshold=20, index_threshold=200, z_threshold=1.0, std_floor=0.05
 )
-flags_df.to_csv(OUTPUT_DIR / "flags_df.csv", sep=",")
+flags_df.to_csv(OUTPUT_DIR / "site_update_files" / "flags_df.csv", sep=",")
 
 top_flags = top_flags_by_provider(flags_df, n=2)
-top_flags.to_csv(OUTPUT_DIR / "top_flags.csv", sep=",")
+top_flags.to_csv(OUTPUT_DIR / "site_update_files" / "top_flags.csv", sep=",")
