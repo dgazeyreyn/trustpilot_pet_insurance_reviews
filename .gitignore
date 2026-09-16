@@ -13,6 +13,7 @@ Miniforge3-*.sh
 
 # Modeling outputs
 data/modeling/*.csv
+data/modeling/summary_analysis/*.csv
 bertopic_model_*/
 berttopic_model_full_corpus/topics.json
 *.safetensors
