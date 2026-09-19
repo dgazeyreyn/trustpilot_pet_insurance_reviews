@@ -6,7 +6,7 @@ from bertopic import BERTopic
 # Paths
 # ----------------------------
 BASE_DIR = Path("/Users/davidreynolds/projects/trustpilot_pet_insurance_reviews")
-input_file = BASE_DIR / "data" / "modeling" / "reviews_with_topics.csv"
+input_file = BASE_DIR / "data" / "modeling" / "reviews_with_topics_sentiment.csv"
 output_dir = BASE_DIR / "data" / "modeling"
 
 # ----------------------------
@@ -34,14 +34,11 @@ topic_df = (
     .sort_values("count", ascending=False)
     .reset_index(drop=True)
 )
+print(f"Saved {len(topic_df)} topics → {output_dir / 'topic_summary.csv'}")
 
-output_path = output_dir / "topic_summary.csv"
-topic_df.to_csv(output_path, index=False)
-print(f"Saved {len(topic_df)} topics → {output_path}")
-
-# ----------------------------
-# Load data with topics
-# ----------------------------
+# ---------------------------------
+# Load data with topics & sentiment
+# ---------------------------------
 df = pd.read_csv(input_file)
 
 # Generate a random sample of 10 reviews per topic for manual inspection
@@ -52,4 +49,20 @@ sample_df = (
 )
 output_path = output_dir / "sample_reviews_by_topic.csv"
 sample_df.to_csv(output_path, index=False)
-print(f"Saved {len(sample_df)} sample reviews → {output_path}")
+print(
+    f"Saved {len(sample_df)} sample reviews → {output_dir / 'sample_reviews_by_topic.csv'}"
+)
+
+# Calculate average rating and sentiment per topic for summary table
+topic_avgs_df = (
+    df.groupby("topic", group_keys=False)
+    .agg(
+        avg_rating=("rating", "mean"),
+        avg_sentiment=("sentiment_score", "mean"),
+    )
+    .reset_index()
+)
+
+topic_df = topic_df.merge(topic_avgs_df, on="topic")
+output_path = output_dir / "topic_summary.csv"
+topic_df.to_csv(output_path, index=False)
