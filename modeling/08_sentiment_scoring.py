@@ -12,7 +12,7 @@ pd.set_option("display.max_rows", 15)
 # Paths
 # ----------------------------
 BASE_DIR = Path(__file__).resolve().parents[1]  # adjust if running from project root
-INPUT = BASE_DIR / "data" / "modeling" / "reviews_with_themes.csv"
+INPUT = BASE_DIR / "data" / "modeling" / "reviews_with_topics.csv"
 OUTPUT_DIR = BASE_DIR / "data" / "modeling"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -33,5 +33,5 @@ def get_sentiment(text):
 df["sentiment_score"] = df["text"].apply(get_sentiment)
 
 # Save merged review + theme file
-df.to_csv(OUTPUT_DIR / "reviews_with_themes_sentiment.csv", index=False)
-print("Saved: reviews_with_themes_sentiment.csv")
+df.to_csv(OUTPUT_DIR / "reviews_with_topics_sentiment.csv", index=False)
+print("Saved: reviews_with_topics_sentiment.csv")
