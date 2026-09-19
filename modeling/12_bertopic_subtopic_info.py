@@ -43,7 +43,7 @@ df = pd.read_csv(input_file)
 
 # Generate a random sample of 10 reviews per topic for manual inspection
 sample_df = (
-    df.groupby("topic", group_keys=False)
+    df.groupby(["provider", "topic"], group_keys=False)
     .apply(lambda x: x.sample(n=min(len(x), 15), random_state=42))
     .reset_index(drop=True)
 )
