@@ -11,7 +11,7 @@ from bertopic.vectorizers import ClassTfidfTransformer
 # Paths
 # ----------------------------
 BASE_DIR = Path("/Users/davidreynolds/projects/trustpilot_pet_insurance_reviews")
-input_file = BASE_DIR / "data" / "modeling" / "reviews_with_topics.csv"
+input_file = BASE_DIR / "data" / "modeling" / "reviews_with_topics_sentiment.csv"
 output_dir = BASE_DIR / "data" / "modeling"
 
 # ----------------------------
@@ -22,7 +22,7 @@ df = pd.read_csv(input_file)
 # ----------------------------
 # Filter data
 # ----------------------------
-df_filtered = df[df["topic"] == 3].reset_index(drop=True)
+df_filtered = df[df["topic"] == 2].reset_index(drop=True)
 print(df_filtered.shape)
 
 # -----------------------------------------------------------
