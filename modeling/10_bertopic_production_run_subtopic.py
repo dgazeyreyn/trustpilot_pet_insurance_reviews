@@ -22,7 +22,7 @@ df = pd.read_csv(input_file)
 # ----------------------------
 # Filter data
 # ----------------------------
-df_filtered = df[df["topic"] == 2].reset_index(drop=True)
+df_filtered = df[df["topic"] == 5].reset_index(drop=True)
 print(df_filtered.shape)
 
 # -----------------------------------------------------------
@@ -215,7 +215,7 @@ sub_topics, sub_probs = sub_topic_model.fit_transform(documents)
 df_filtered["sub_topic"] = sub_topics
 
 # Save enriched dataset
-output_path = output_dir / "reviews_with_topic2_subtopics.csv"
+output_path = output_dir / "reviews_with_topic5_subtopics.csv"
 df_filtered.to_csv(output_path, index=False)
 
 print(f"Saved results to: {output_path}")
@@ -226,4 +226,4 @@ print(f"Saved results to: {output_path}")
 sub_topic_info = sub_topic_model.get_topic_info()
 print(sub_topic_info.head(15))
 
-sub_topic_model.save("bertopic_model_topic2_subtopics", serialization="safetensors")
+sub_topic_model.save("bertopic_model_topic5_subtopics", serialization="safetensors")
