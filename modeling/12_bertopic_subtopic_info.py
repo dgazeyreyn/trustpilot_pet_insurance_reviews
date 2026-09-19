@@ -6,35 +6,35 @@ from bertopic import BERTopic
 # Paths
 # ----------------------------
 BASE_DIR = Path("/Users/davidreynolds/projects/trustpilot_pet_insurance_reviews")
-input_file = BASE_DIR / "data" / "modeling" / "reviews_with_topics_sentiment.csv"
+input_file = BASE_DIR / "data" / "modeling" / "reviews_with_topic2_subtopics.csv"
 output_dir = BASE_DIR / "data" / "modeling"
 
 # ----------------------------
 # Load model data
 # ----------------------------
-topic_model = BERTopic.load("bertopic_model_full_corpus")
+sub_topic_model = BERTopic.load("bertopic_model_topic2_subtopics")
 
 # Pull counts once from get_topic_info(), rather than re-querying per topic in the loop
-topic_info = topic_model.get_topic_info()
-count_by_topic = dict(zip(topic_info["Topic"], topic_info["Count"]))
+sub_topic_info = sub_topic_model.get_topic_info()
+count_by_sub_topic = dict(zip(sub_topic_info["Topic"], sub_topic_info["Count"]))
 
 topic_records = []
-for topic_id in sorted(topic_model.get_topics().keys()):
-    words = [word for word, score in topic_model.get_topic(topic_id)]
+for topic_id in sorted(sub_topic_model.get_topics().keys()):
+    words = [word for word, score in sub_topic_model.get_topic(topic_id)]
     topic_records.append(
         {
             "topic": topic_id,
-            "count": count_by_topic.get(topic_id),
+            "count": count_by_sub_topic.get(topic_id),
             "words": ", ".join(words),
         }
     )
 
-topic_df = (
+sub_topic_df = (
     pd.DataFrame(topic_records)
     .sort_values("count", ascending=False)
     .reset_index(drop=True)
 )
-print(f"Saved {len(topic_df)} topics → {output_dir / 'topic_summary.csv'}")
+print(f"Saved {len(sub_topic_df)} topics → {output_dir / 'topic_summary.csv'}")
 
 # ---------------------------------
 # Load data with topics & sentiment
@@ -54,8 +54,8 @@ print(
 )
 
 # Calculate average rating and sentiment per topic for summary table
-topic_avgs_df = (
-    df.groupby("topic", group_keys=False)
+sub_topic_avgs_df = (
+    df.groupby("sub_topic", group_keys=False)
     .agg(
         avg_rating=("rating", "mean"),
         avg_sentiment=("sentiment_score", "mean"),
@@ -63,6 +63,8 @@ topic_avgs_df = (
     .reset_index()
 )
 
-topic_df = topic_df.merge(topic_avgs_df, on="topic")
-output_path = output_dir / "topic_summary.csv"
-topic_df.to_csv(output_path, index=False)
+sub_topic_df = sub_topic_df.merge(
+    sub_topic_avgs_df, left_on="topic", right_on="sub_topic", suffixes=("", "_avg")
+)
+output_path = output_dir / "summary_topic2_subtopics.csv"
+sub_topic_df.to_csv(output_path, index=False)
