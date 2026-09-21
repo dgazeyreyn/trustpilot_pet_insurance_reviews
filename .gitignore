@@ -21,3 +21,6 @@ berttopic_model_full_corpus/topics.json
 
 # Notebooks
 notebooks/*.ipynb
+
+__pycache__/
+*.pyc
